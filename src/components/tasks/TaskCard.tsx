@@ -1,24 +1,6 @@
 import { useState } from 'react';
 import { categoryConfig } from '../../data/categories';
-
-// Inline Task type
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  category: string;
-  source: 'lincoln' | 'user';
-  frequency: {
-    type: string;
-    days?: number[];
-    dayOfMonth?: number;
-    weekOccurrence?: number;
-  };
-  reminderTimes?: string[];
-  notificationText?: string;
-  createdAt: Date;
-  archived: boolean;
-}
+import type { Task } from '../../utils/taskUtils';
 
 interface TaskCardProps {
   task: Task;

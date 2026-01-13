@@ -1,42 +1,52 @@
-// Inline types
-type TaskCategory = 
-  | 'lincoln_demands'
-  | 'daily_rituals'
-  | 'rotation'
-  | 'weekly'
-  | 'monthly'
-  | 'life_admin'
-  | 'skincare'
-  | 'one_off';
+import type { DbTask } from '../lib/supabase';
 
-type TaskSource = 'lincoln' | 'user';
-type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-
-interface FrequencyRule {
-  type: 'daily' | 'specific_days' | 'first_x_of_month' | 'one_off';
-  days?: DayOfWeek[];
-  dayOfMonth?: number;
-  weekOccurrence?: number;
-}
-
-interface Task {
+// Local Task type that matches what components expect
+export interface Task {
   id: string;
   title: string;
   description?: string;
-  category: TaskCategory;
-  source: TaskSource;
-  frequency: FrequencyRule;
+  category: string;
+  source: 'lincoln' | 'user';
+  frequency: {
+    type: 'daily' | 'specific_days' | 'first_x_of_month' | 'one_off';
+    days?: number[];
+    dayOfMonth?: number;
+    weekOccurrence?: number;
+  };
   reminderTimes?: string[];
   notificationText?: string;
   createdAt: Date;
   archived: boolean;
 }
 
-interface BloomState {
+export interface BloomState {
   percentage: number;
   level: 'wilted' | 'blooming-25' | 'blooming-50' | 'blooming-75' | 'full-bloom';
   tasksTotal: number;
   tasksCompleted: number;
+}
+
+/**
+ * Convert database task to local format
+ */
+export function dbTaskToLocal(dbTask: DbTask): Task {
+  return {
+    id: dbTask.id,
+    title: dbTask.title,
+    description: dbTask.description ?? undefined,
+    category: dbTask.category,
+    source: dbTask.source,
+    frequency: {
+      type: dbTask.frequency_type,
+      days: dbTask.frequency_days ?? undefined,
+      dayOfMonth: dbTask.frequency_day_of_month ?? undefined,
+      weekOccurrence: dbTask.frequency_week_occurrence ?? undefined,
+    },
+    reminderTimes: dbTask.reminder_times ?? undefined,
+    notificationText: dbTask.notification_text ?? undefined,
+    createdAt: new Date(dbTask.created_at),
+    archived: dbTask.archived,
+  };
 }
 
 /**
@@ -45,7 +55,7 @@ interface BloomState {
 export function isTaskDueOn(task: Task, date: Date): boolean {
   if (task.archived) return false;
 
-  const dayOfWeek = date.getDay() as DayOfWeek;
+  const dayOfWeek = date.getDay();
   const { frequency } = task;
 
   switch (frequency.type) {
@@ -56,7 +66,7 @@ export function isTaskDueOn(task: Task, date: Date): boolean {
       return frequency.days?.includes(dayOfWeek) ?? false;
 
     case 'first_x_of_month':
-      if (!frequency.dayOfMonth || !frequency.weekOccurrence) return false;
+      if (frequency.dayOfMonth === undefined || frequency.weekOccurrence === undefined) return false;
       if (dayOfWeek !== frequency.dayOfMonth) return false;
       const dayOfMonth = date.getDate();
       const weekNumber = Math.ceil(dayOfMonth / 7);
@@ -145,6 +155,13 @@ export function formatDate(date: Date): string {
     day: 'numeric',
     month: 'long',
   });
+}
+
+/**
+ * Get today's date as YYYY-MM-DD string
+ */
+export function getTodayDateString(): string {
+  return new Date().toISOString().split('T')[0];
 }
 
 /**

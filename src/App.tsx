@@ -1,83 +1,107 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { StarField } from './components/ui/StarField';
 import { BloomIndicator } from './components/ui/BloomIndicator';
 import { TaskCard } from './components/tasks/TaskCard';
-import { defaultTasks } from './data/tasks';
 import { categoryConfig } from './data/categories';
 import { 
+  fetchTasks, 
+  fetchCompletionsForDate, 
+  completeTask, 
+  uncompleteTask,
+  subscribeToTasks 
+} from './lib/api';
+import type { DbCompletion } from './lib/supabase';
+import { 
+  dbTaskToLocal,
   getTodaysTasks, 
   groupTasksByCategory, 
   calculateBloom,
   formatDate,
   categoryOrder 
 } from './utils/taskUtils';
-
-// Get today's date as a string key for storage
-function getTodayKey(): string {
-  const today = new Date();
-  return `vale-completions-${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-}
-
-// Load completions from localStorage
-function loadCompletions(): Set<string> {
-  try {
-    const key = getTodayKey();
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      return new Set(JSON.parse(stored));
-    }
-  } catch (e) {
-    console.error('Failed to load completions:', e);
-  }
-  return new Set();
-}
-
-// Save completions to localStorage
-function saveCompletions(completions: Set<string>): void {
-  try {
-    const key = getTodayKey();
-    localStorage.setItem(key, JSON.stringify([...completions]));
-  } catch (e) {
-    console.error('Failed to save completions:', e);
-  }
-}
-
-// Clean up old completion data (keep last 7 days)
-function cleanupOldCompletions(): void {
-  try {
-    const keys = Object.keys(localStorage);
-    const today = new Date();
-    
-    keys.forEach(key => {
-      if (key.startsWith('vale-completions-')) {
-        const datePart = key.replace('vale-completions-', '');
-        const [year, month, day] = datePart.split('-').map(Number);
-        const keyDate = new Date(year, month - 1, day);
-        const diffDays = (today.getTime() - keyDate.getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (diffDays > 7) {
-          localStorage.removeItem(key);
-        }
-      }
-    });
-  } catch (e) {
-    console.error('Failed to cleanup old completions:', e);
-  }
-}
+import type { Task } from './utils/taskUtils';
 
 function App() {
-  const [tasks] = useState(defaultTasks);
-  const [completions, setCompletions] = useState<Set<string>>(() => loadCompletions());
-  
-  // Clean up old data on mount
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [completions, setCompletions] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load tasks and completions on mount
   useEffect(() => {
-    cleanupOldCompletions();
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch tasks from Supabase
+        const dbTasks = await fetchTasks();
+        const localTasks = dbTasks.map(dbTaskToLocal);
+        setTasks(localTasks);
+
+        // Fetch today's completions
+        const today = new Date();
+        const todayCompletions = await fetchCompletionsForDate(today);
+        const completedTaskIds = new Set(todayCompletions.map((c: DbCompletion) => c.task_id));
+        setCompletions(completedTaskIds);
+
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        setError('Failed to load tasks. Please refresh.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
   }, []);
 
-  // Save completions whenever they change
+  // Subscribe to real-time task changes (for when Lincoln adds tasks)
   useEffect(() => {
-    saveCompletions(completions);
+    const unsubscribe = subscribeToTasks((dbTasks) => {
+      const localTasks = dbTasks.map(dbTaskToLocal);
+      setTasks(localTasks);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Handle task toggle
+  const handleToggleTask = useCallback(async (taskId: string) => {
+    const today = new Date();
+    const wasCompleted = completions.has(taskId);
+
+    // Optimistic update
+    setCompletions(prev => {
+      const next = new Set(prev);
+      if (wasCompleted) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+
+    try {
+      if (wasCompleted) {
+        await uncompleteTask(taskId, today);
+      } else {
+        await completeTask(taskId, today);
+      }
+    } catch (err) {
+      // Revert on error
+      console.error('Failed to toggle task:', err);
+      setCompletions(prev => {
+        const next = new Set(prev);
+        if (wasCompleted) {
+          next.add(taskId);
+        } else {
+          next.delete(taskId);
+        }
+        return next;
+      });
+    }
   }, [completions]);
 
   // Get today's tasks
@@ -94,20 +118,58 @@ function App() {
   // Star intensity based on bloom
   const starIntensity = bloom.percentage / 100;
 
-  const handleToggleTask = (taskId: string) => {
-    setCompletions(prev => {
-      const next = new Set(prev);
-      if (next.has(taskId)) {
-        next.delete(taskId);
-      } else {
-        next.add(taskId);
-      }
-      return next;
-    });
-  };
-
   // Get ordered categories that have tasks today
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+        }}
+      >
+        <div className="text-center">
+          <h1 
+            className="text-4xl font-bold mb-4"
+            style={{
+              fontFamily: 'Cormorant Garamond, serif',
+              background: 'linear-gradient(135deg, #ff6b9d 0%, #b794f6 50%, #00fff7 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            Vale
+          </h1>
+          <p className="text-purple-300/60 animate-pulse">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center p-6"
+        style={{
+          background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+        }}
+      >
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-400 mb-4">Oops</h1>
+          <p className="text-purple-300/60 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
