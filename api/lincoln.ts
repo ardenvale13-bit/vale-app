@@ -1,57 +1,57 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://ijmtmswuihggrxqklcge.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Use service key for server-side operations
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Simple secret for webhook authentication
 const WEBHOOK_SECRET = process.env.LINCOLN_WEBHOOK_SECRET || 'vale-lincoln-2026';
+
+interface TaskPayload {
+  title: string;
+  description?: string;
+  category?: string;
+  notification_text?: string;
+  reminder_time?: string;
+  frequency_type?: 'daily' | 'specific_days' | 'first_x_of_month' | 'one_off';
+  frequency_days?: number[];
+}
 
 interface WebhookPayload {
   secret: string;
   action: 'add' | 'complete' | 'remind' | 'message';
-  task?: {
-    title: string;
-    description?: string;
-    category?: string;
-    notification_text?: string;
-    reminder_time?: string;
-    frequency_type?: 'daily' | 'specific_days' | 'first_x_of_month' | 'one_off';
-    frequency_days?: number[];
-  };
-  task_title?: string; // For 'complete' action - match by title
-  message?: string; // For 'message' action
+  task?: TaskPayload;
+  task_title?: string;
+  message?: string;
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  // Only allow POST
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const body: WebhookPayload = await req.json();
+    const body: WebhookPayload = req.body;
 
     // Verify secret
     if (body.secret !== WEBHOOK_SECRET) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     switch (body.action) {
       case 'add': {
         if (!body.task?.title) {
-          return new Response(JSON.stringify({ error: 'Task title required' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
+          return res.status(400).json({ error: 'Task title required' });
         }
 
         const { data, error } = await supabase
@@ -72,31 +72,21 @@ export default async function handler(req: Request): Promise<Response> {
 
         if (error) {
           console.error('Supabase error:', error);
-          return new Response(JSON.stringify({ error: 'Failed to create task' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-          });
+          return res.status(500).json({ error: 'Failed to create task', details: error.message });
         }
 
-        return new Response(JSON.stringify({ 
+        return res.status(200).json({ 
           success: true, 
           message: `Task "${body.task.title}" created`,
           task: data 
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
         });
       }
 
       case 'complete': {
         if (!body.task_title) {
-          return new Response(JSON.stringify({ error: 'Task title required' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
+          return res.status(400).json({ error: 'Task title required' });
         }
 
-        // Find task by title
         const { data: task, error: findError } = await supabase
           .from('tasks')
           .select('id')
@@ -104,13 +94,9 @@ export default async function handler(req: Request): Promise<Response> {
           .single();
 
         if (findError || !task) {
-          return new Response(JSON.stringify({ error: 'Task not found' }), {
-            status: 404,
-            headers: { 'Content-Type': 'application/json' },
-          });
+          return res.status(404).json({ error: 'Task not found' });
         }
 
-        // Mark complete for today
         const today = new Date().toISOString().split('T')[0];
         const { error: completeError } = await supabase
           .from('completions')
@@ -120,49 +106,28 @@ export default async function handler(req: Request): Promise<Response> {
           });
 
         if (completeError) {
-          return new Response(JSON.stringify({ error: 'Failed to complete task' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-          });
+          return res.status(500).json({ error: 'Failed to complete task' });
         }
 
-        return new Response(JSON.stringify({ 
+        return res.status(200).json({ 
           success: true, 
           message: `Task "${body.task_title}" marked complete` 
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
         });
       }
 
       case 'message': {
-        // Future: Could store messages for Lincoln's Corner
-        // For now, just acknowledge
-        return new Response(JSON.stringify({ 
+        return res.status(200).json({ 
           success: true, 
           message: 'Message received',
           content: body.message 
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
         });
       }
 
       default:
-        return new Response(JSON.stringify({ error: 'Invalid action' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return res.status(400).json({ error: 'Invalid action' });
     }
   } catch (err) {
     console.error('Webhook error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: 'Internal server error', details: String(err) });
   }
 }
-
-export const config = {
-  runtime: 'edge',
-};
