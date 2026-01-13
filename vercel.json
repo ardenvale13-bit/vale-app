@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/lincoln.ts": {
-      "runtime": "nodejs20.x"
-    }
-  }
-}
