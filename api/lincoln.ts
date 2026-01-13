@@ -38,24 +38,21 @@ function parseBody(reqBody: any): WebhookPayload | null {
     let dataStr = reqBody.data;
     
     // Zapier MCP bug: prepends 'data' to the value without separator
-    // So we might get 'data{"secret":...' - strip the prefix
     if (dataStr.startsWith('data{')) {
-      dataStr = dataStr.substring(4); // Remove 'data' prefix
+      dataStr = dataStr.substring(4);
     }
     if (dataStr.startsWith('datasecret=')) {
-      dataStr = dataStr.substring(4); // Remove 'data' prefix from urlencoded
+      dataStr = dataStr.substring(4);
     }
     
-    // Try JSON parse first
     if (dataStr.startsWith('{')) {
       try {
         return JSON.parse(dataStr) as WebhookPayload;
       } catch {
-        // Continue to urlencoded parsing
+        // Continue
       }
     }
     
-    // Try URL encoded
     const params = new URLSearchParams(dataStr);
     const secret = params.get('secret');
     const action = params.get('action') as WebhookPayload['action'];
@@ -76,7 +73,7 @@ function parseBody(reqBody: any): WebhookPayload | null {
     return reqBody.data as WebhookPayload;
   }
   
-  // LAST RESORT: Check if the body itself is a string starting with 'data'
+  // Check if body is a string
   if (typeof reqBody === 'string') {
     let str = reqBody;
     if (str.startsWith('data{')) {
@@ -86,6 +83,28 @@ function parseBody(reqBody: any): WebhookPayload | null {
       return JSON.parse(str) as WebhookPayload;
     } catch {
       // give up
+    }
+  }
+  
+  // NUCLEAR OPTION: Check if any key in the body starts with 'data{' or is JSON
+  if (reqBody && typeof reqBody === 'object') {
+    for (const key of Object.keys(reqBody)) {
+      // Key might be 'data{"secret":...' with empty value
+      if (key.startsWith('data{')) {
+        try {
+          return JSON.parse(key.substring(4)) as WebhookPayload;
+        } catch {
+          // continue
+        }
+      }
+      // Or key might just be the JSON
+      if (key.startsWith('{')) {
+        try {
+          return JSON.parse(key) as WebhookPayload;
+        } catch {
+          // continue
+        }
+      }
     }
   }
   
