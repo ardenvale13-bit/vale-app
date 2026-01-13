@@ -100,14 +100,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Collect raw body if bodyParser is disabled
-    let rawBodyStr = '';
-    if (!req.body) {
-      rawBodyStr = await collectBody(req);
+    // Collect raw body since bodyParser is disabled
+    const rawBodyStr = await collectBody(req);
+    
+    // Try to parse it
+    let parsedBody: any = null;
+    
+    // First try direct JSON parse
+    try {
+      parsedBody = JSON.parse(rawBodyStr);
+    } catch {
+      // If starts with 'data', strip it and try again
+      if (rawBodyStr.startsWith('data{')) {
+        try {
+          parsedBody = JSON.parse(rawBodyStr.substring(4));
+        } catch {
+          // Still failed
+        }
+      }
     }
     
-    // Try to get payload from various sources
-    const payload = extractPayload(req.body, rawBodyStr);
+    // Try to get payload
+    const payload = extractPayload(parsedBody, rawBodyStr);
     
     console.log('req.body:', JSON.stringify(req.body));
     console.log('rawBodyStr:', rawBodyStr);
@@ -209,6 +223,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 export const config = {
   api: {
-    bodyParser: true, // Keep it on - we'll handle both cases
+    bodyParser: false,
   },
 };
