@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://ijmtmswuihggrxqklcge.supabase.co';
@@ -26,72 +25,82 @@ interface WebhookPayload {
   message?: string;
 }
 
-// Extract payload from various formats
-function extractPayload(body: any): WebhookPayload | null {
-  if (!body) return null;
+// Extract payload from raw body string
+function extractPayload(rawBody: string): WebhookPayload | null {
+  if (!rawBody) return null;
   
-  // Direct object with secret
-  if (body.secret) return body;
+  let str = rawBody.trim();
   
-  // Body is a string (text/plain content-type)
-  if (typeof body === 'string') {
-    let str = body;
-    if (str.startsWith('data{')) str = str.substring(4);
-    if (str.startsWith('{')) {
-      try { return JSON.parse(str); } catch {}
-    }
+  // Strip 'data' prefix if present (Zapier MCP bug)
+  if (str.startsWith('data{')) {
+    str = str.substring(4);
   }
   
-  // Nested in data as object
-  if (body.data?.secret) return body.data;
-  
-  // Nested in data as string
-  if (typeof body.data === 'string') {
-    let str = body.data;
-    if (str.startsWith('data')) str = str.substring(4);
-    try { return JSON.parse(str); } catch {}
-  }
-  
-  // Check keys for JSON (weird edge case)
-  if (typeof body === 'object') {
-    for (const key of Object.keys(body)) {
-      let str = key;
-      if (str.startsWith('data')) str = str.substring(4);
-      if (str.startsWith('{')) {
-        try { return JSON.parse(str); } catch {}
-      }
+  // Try to parse as JSON
+  if (str.startsWith('{')) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return null;
     }
   }
   
   return null;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+export const config = {
+  runtime: 'edge',
+};
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req: Request): Promise<Response> {
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
-    const payload = extractPayload(req.body);
+    // Get raw body text - no automatic parsing!
+    const rawBody = await req.text();
     
+    const payload = extractPayload(rawBody);
+
     if (!payload) {
-      return res.status(400).json({ 
+      return new Response(JSON.stringify({ 
         error: 'Could not parse body',
-        received: JSON.stringify(req.body).substring(0, 500)
+        received: rawBody.substring(0, 200)
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (payload.secret !== WEBHOOK_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     switch (payload.action) {
       case 'add': {
         if (!payload.task?.title) {
-          return res.status(400).json({ error: 'Task title required' });
+          return new Response(JSON.stringify({ error: 'Task title required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         const { data, error } = await supabase
@@ -111,19 +120,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .single();
 
         if (error) {
-          return res.status(500).json({ error: 'Failed to create task', details: error.message });
+          return new Response(JSON.stringify({ error: 'Failed to create task', details: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
-        return res.status(200).json({ 
+        return new Response(JSON.stringify({ 
           success: true, 
           message: `Task "${payload.task.title}" created`,
           task: data 
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       case 'complete': {
         if (!payload.task_title) {
-          return res.status(400).json({ error: 'Task title required' });
+          return new Response(JSON.stringify({ error: 'Task title required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         const { data: task } = await supabase
@@ -132,23 +150,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .ilike('title', payload.task_title)
           .single();
 
-        if (!task) return res.status(404).json({ error: 'Task not found' });
+        if (!task) {
+          return new Response(JSON.stringify({ error: 'Task not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
         await supabase.from('completions').insert({
           task_id: task.id,
           scheduled_for: new Date().toISOString().split('T')[0],
         });
 
-        return res.status(200).json({ success: true, message: `Task completed` });
+        return new Response(JSON.stringify({ success: true, message: 'Task completed' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       case 'message':
-        return res.status(200).json({ success: true, message: 'Message received' });
+        return new Response(JSON.stringify({ success: true, message: 'Message received' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
 
       default:
-        return res.status(400).json({ error: 'Invalid action' });
+        return new Response(JSON.stringify({ error: 'Invalid action' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
     }
   } catch (err) {
-    return res.status(500).json({ error: 'Internal server error', details: String(err) });
+    return new Response(JSON.stringify({ error: 'Internal server error', details: String(err) }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 }
