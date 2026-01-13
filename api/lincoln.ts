@@ -43,9 +43,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body: WebhookPayload = req.body;
 
+    // Debug logging
+    console.log('Received body:', JSON.stringify(body));
+    console.log('Expected secret:', WEBHOOK_SECRET);
+    console.log('Received secret:', body?.secret);
+
     // Verify secret
-    if (body.secret !== WEBHOOK_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (body?.secret !== WEBHOOK_SECRET) {
+      return res.status(401).json({ 
+        error: 'Unauthorized',
+        debug: {
+          receivedSecret: body?.secret ? 'present but wrong' : 'missing',
+          bodyKeys: body ? Object.keys(body) : 'no body'
+        }
+      });
     }
 
     switch (body.action) {
