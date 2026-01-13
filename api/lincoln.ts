@@ -35,32 +35,58 @@ function parseBody(reqBody: any): WebhookPayload | null {
   
   // If Zapier sent it nested in 'data' as a string, parse it
   if (reqBody?.data && typeof reqBody.data === 'string') {
-    try {
-      return JSON.parse(reqBody.data) as WebhookPayload;
-    } catch {
-      // Maybe it's URL encoded, try to parse
-      const params = new URLSearchParams(reqBody.data);
-      const secret = params.get('secret');
-      const action = params.get('action') as WebhookPayload['action'];
-      const taskStr = params.get('task');
-      
-      if (secret && action) {
-        let task: TaskPayload | undefined;
-        if (taskStr) {
-          try {
-            task = JSON.parse(taskStr);
-          } catch {
-            // ignore
-          }
-        }
-        return { secret, action, task };
+    let dataStr = reqBody.data;
+    
+    // Zapier MCP bug: prepends 'data' to the value without separator
+    // So we might get 'data{"secret":...' - strip the prefix
+    if (dataStr.startsWith('data{')) {
+      dataStr = dataStr.substring(4); // Remove 'data' prefix
+    }
+    if (dataStr.startsWith('datasecret=')) {
+      dataStr = dataStr.substring(4); // Remove 'data' prefix from urlencoded
+    }
+    
+    // Try JSON parse first
+    if (dataStr.startsWith('{')) {
+      try {
+        return JSON.parse(dataStr) as WebhookPayload;
+      } catch {
+        // Continue to urlencoded parsing
       }
+    }
+    
+    // Try URL encoded
+    const params = new URLSearchParams(dataStr);
+    const secret = params.get('secret');
+    const action = params.get('action') as WebhookPayload['action'];
+    
+    if (secret && action) {
+      const task: TaskPayload = {
+        title: params.get('task[title]') || '',
+        notification_text: params.get('task[notification_text]') || undefined,
+        category: params.get('task[category]') || undefined,
+        frequency_type: (params.get('task[frequency_type]') as TaskPayload['frequency_type']) || undefined,
+      };
+      return { secret, action, task: task.title ? task : undefined };
     }
   }
   
   // If Zapier sent it as nested 'data' object
   if (reqBody?.data && typeof reqBody.data === 'object') {
     return reqBody.data as WebhookPayload;
+  }
+  
+  // LAST RESORT: Check if the body itself is a string starting with 'data'
+  if (typeof reqBody === 'string') {
+    let str = reqBody;
+    if (str.startsWith('data{')) {
+      str = str.substring(4);
+    }
+    try {
+      return JSON.parse(str) as WebhookPayload;
+    } catch {
+      // give up
+    }
   }
   
   return null;
