@@ -111,6 +111,20 @@ function parseBody(reqBody: any): WebhookPayload | null {
   return null;
 }
 
+// Read raw body from request
+async function getRawBody(req: VercelRequest): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      resolve(data);
+    });
+    req.on('error', reject);
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -126,7 +140,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = parseBody(req.body);
+    // Get raw body string
+    const rawBody = await getRawBody(req);
+    console.log('Raw body string:', rawBody);
+    
+    // Try to parse as JSON first
+    let parsedBody: any;
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch {
+      // If it starts with 'data{', strip the prefix
+      if (rawBody.startsWith('data{')) {
+        try {
+          parsedBody = JSON.parse(rawBody.substring(4));
+        } catch {
+          parsedBody = rawBody; // Keep as string for parseBody to handle
+        }
+      } else {
+        parsedBody = rawBody;
+      }
+    }
+    
+    const body = parseBody(parsedBody);
 
     // Debug logging
     console.log('Raw body:', JSON.stringify(req.body));
@@ -232,3 +267,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Internal server error', details: String(err) });
   }
 }
+
+// Disable automatic body parsing so we can handle raw strings
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
