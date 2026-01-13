@@ -26,84 +26,54 @@ interface WebhookPayload {
   message?: string;
 }
 
-// Parse body - handle Zapier's weird formatting
-function parseBody(reqBody: any): WebhookPayload | null {
-  // If it's already a proper object with 'secret', use it
-  if (reqBody?.secret) {
-    return reqBody as WebhookPayload;
+// Parse the body from various cursed formats
+function extractPayload(body: any, rawBodyStr?: string): WebhookPayload | null {
+  // 1. Already a proper object with secret
+  if (body?.secret) {
+    return body as WebhookPayload;
   }
   
-  // If Zapier sent it nested in 'data' as a string, parse it
-  if (reqBody?.data && typeof reqBody.data === 'string') {
-    let dataStr = reqBody.data;
-    
-    // Zapier MCP bug: prepends 'data' to the value without separator
-    if (dataStr.startsWith('data{')) {
-      dataStr = dataStr.substring(4);
-    }
-    if (dataStr.startsWith('datasecret=')) {
-      dataStr = dataStr.substring(4);
-    }
-    
-    if (dataStr.startsWith('{')) {
-      try {
-        return JSON.parse(dataStr) as WebhookPayload;
-      } catch {
-        // Continue
-      }
-    }
-    
-    const params = new URLSearchParams(dataStr);
-    const secret = params.get('secret');
-    const action = params.get('action') as WebhookPayload['action'];
-    
-    if (secret && action) {
-      const task: TaskPayload = {
-        title: params.get('task[title]') || '',
-        notification_text: params.get('task[notification_text]') || undefined,
-        category: params.get('task[category]') || undefined,
-        frequency_type: (params.get('task[frequency_type]') as TaskPayload['frequency_type']) || undefined,
-      };
-      return { secret, action, task: task.title ? task : undefined };
-    }
+  // 2. Nested in 'data' field as object
+  if (body?.data && typeof body.data === 'object' && body.data.secret) {
+    return body.data as WebhookPayload;
   }
   
-  // If Zapier sent it as nested 'data' object
-  if (reqBody?.data && typeof reqBody.data === 'object') {
-    return reqBody.data as WebhookPayload;
-  }
-  
-  // Check if body is a string
-  if (typeof reqBody === 'string') {
-    let str = reqBody;
-    if (str.startsWith('data{')) {
-      str = str.substring(4);
-    }
+  // 3. Nested in 'data' field as string (might have 'data' prefix from Zapier bug)
+  if (body?.data && typeof body.data === 'string') {
+    let str = body.data;
+    if (str.startsWith('data')) str = str.substring(4);
     try {
       return JSON.parse(str) as WebhookPayload;
-    } catch {
-      // give up
-    }
+    } catch {}
   }
   
-  // NUCLEAR OPTION: Check if any key in the body starts with 'data{' or is JSON
-  if (reqBody && typeof reqBody === 'object') {
-    for (const key of Object.keys(reqBody)) {
-      // Key might be 'data{"secret":...' with empty value
-      if (key.startsWith('data{')) {
+  // 4. Body is a string itself
+  if (typeof body === 'string') {
+    let str = body;
+    if (str.startsWith('data')) str = str.substring(4);
+    try {
+      return JSON.parse(str) as WebhookPayload;
+    } catch {}
+  }
+  
+  // 5. Raw body string provided separately
+  if (rawBodyStr) {
+    let str = rawBodyStr;
+    if (str.startsWith('data')) str = str.substring(4);
+    try {
+      return JSON.parse(str) as WebhookPayload;
+    } catch {}
+  }
+  
+  // 6. Check object keys (Zapier might send 'data{"secret":...' as a KEY)
+  if (body && typeof body === 'object') {
+    for (const key of Object.keys(body)) {
+      let str = key;
+      if (str.startsWith('data')) str = str.substring(4);
+      if (str.startsWith('{')) {
         try {
-          return JSON.parse(key.substring(4)) as WebhookPayload;
-        } catch {
-          // continue
-        }
-      }
-      // Or key might just be the JSON
-      if (key.startsWith('{')) {
-        try {
-          return JSON.parse(key) as WebhookPayload;
-        } catch {
-          // continue
-        }
+          return JSON.parse(str) as WebhookPayload;
+        } catch {}
       }
     }
   }
@@ -111,143 +81,112 @@ function parseBody(reqBody: any): WebhookPayload | null {
   return null;
 }
 
-// Read raw body from request
-async function getRawBody(req: VercelRequest): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk) => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      resolve(data);
-    });
-    req.on('error', reject);
-  });
+// Collect raw body chunks
+async function collectBody(req: VercelRequest): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Get raw body string
-    const rawBody = await getRawBody(req);
-    console.log('Raw body string:', rawBody);
-    
-    // Try to parse as JSON first
-    let parsedBody: any;
-    try {
-      parsedBody = JSON.parse(rawBody);
-    } catch {
-      // If it starts with 'data{', strip the prefix
-      if (rawBody.startsWith('data{')) {
-        try {
-          parsedBody = JSON.parse(rawBody.substring(4));
-        } catch {
-          parsedBody = rawBody; // Keep as string for parseBody to handle
-        }
-      } else {
-        parsedBody = rawBody;
-      }
+    // Collect raw body if bodyParser is disabled
+    let rawBodyStr = '';
+    if (!req.body) {
+      rawBodyStr = await collectBody(req);
     }
     
-    const body = parseBody(parsedBody);
+    // Try to get payload from various sources
+    const payload = extractPayload(req.body, rawBodyStr);
+    
+    console.log('req.body:', JSON.stringify(req.body));
+    console.log('rawBodyStr:', rawBodyStr);
+    console.log('payload:', JSON.stringify(payload));
 
-    // Debug logging
-    console.log('Raw body:', JSON.stringify(req.body));
-    console.log('Parsed body:', JSON.stringify(body));
-
-    if (!body) {
+    if (!payload) {
       return res.status(400).json({ 
-        error: 'Invalid request body',
-        received: req.body 
+        error: 'Could not parse request body',
+        receivedBody: req.body,
+        receivedRaw: rawBodyStr.substring(0, 200)
       });
     }
 
     // Verify secret
-    if (body.secret !== WEBHOOK_SECRET) {
+    if (payload.secret !== WEBHOOK_SECRET) {
       return res.status(401).json({ 
         error: 'Unauthorized',
-        debug: {
-          receivedSecret: body.secret ? 'present but wrong' : 'missing',
-        }
+        hint: payload.secret ? 'wrong secret' : 'no secret found'
       });
     }
 
-    switch (body.action) {
+    // Handle actions
+    switch (payload.action) {
       case 'add': {
-        if (!body.task?.title) {
+        if (!payload.task?.title) {
           return res.status(400).json({ error: 'Task title required' });
         }
 
         const { data, error } = await supabase
           .from('tasks')
           .insert({
-            title: body.task.title,
-            description: body.task.description || null,
-            category: body.task.category || 'lincoln_demands',
+            title: payload.task.title,
+            description: payload.task.description || null,
+            category: payload.task.category || 'lincoln_demands',
             source: 'lincoln',
-            frequency_type: body.task.frequency_type || 'one_off',
-            frequency_days: body.task.frequency_days || null,
-            reminder_times: body.task.reminder_time ? [body.task.reminder_time] : null,
-            notification_text: body.task.notification_text || null,
+            frequency_type: payload.task.frequency_type || 'one_off',
+            frequency_days: payload.task.frequency_days || null,
+            reminder_times: payload.task.reminder_time ? [payload.task.reminder_time] : null,
+            notification_text: payload.task.notification_text || null,
             archived: false,
           })
           .select()
           .single();
 
         if (error) {
-          console.error('Supabase error:', error);
           return res.status(500).json({ error: 'Failed to create task', details: error.message });
         }
 
         return res.status(200).json({ 
           success: true, 
-          message: `Task "${body.task.title}" created`,
+          message: `Task "${payload.task.title}" created`,
           task: data 
         });
       }
 
       case 'complete': {
-        if (!body.task_title) {
+        if (!payload.task_title) {
           return res.status(400).json({ error: 'Task title required' });
         }
 
-        const { data: task, error: findError } = await supabase
+        const { data: task } = await supabase
           .from('tasks')
           .select('id')
-          .ilike('title', body.task_title)
+          .ilike('title', payload.task_title)
           .single();
 
-        if (findError || !task) {
+        if (!task) {
           return res.status(404).json({ error: 'Task not found' });
         }
 
         const today = new Date().toISOString().split('T')[0];
-        const { error: completeError } = await supabase
-          .from('completions')
-          .insert({
-            task_id: task.id,
-            scheduled_for: today,
-          });
-
-        if (completeError) {
-          return res.status(500).json({ error: 'Failed to complete task' });
-        }
+        await supabase.from('completions').insert({
+          task_id: task.id,
+          scheduled_for: today,
+        });
 
         return res.status(200).json({ 
           success: true, 
-          message: `Task "${body.task_title}" marked complete` 
+          message: `Task "${payload.task_title}" marked complete` 
         });
       }
 
@@ -255,7 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ 
           success: true, 
           message: 'Message received',
-          content: body.message 
+          content: payload.message 
         });
       }
 
@@ -268,9 +207,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-// Disable automatic body parsing so we can handle raw strings
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: true, // Keep it on - we'll handle both cases
   },
 };
