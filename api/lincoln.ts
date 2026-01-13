@@ -26,72 +26,36 @@ interface WebhookPayload {
   message?: string;
 }
 
-// Parse the body from various cursed formats
-function extractPayload(body: any, rawBodyStr?: string): WebhookPayload | null {
-  // 1. Already a proper object with secret
-  if (body?.secret) {
-    return body as WebhookPayload;
-  }
+// Extract payload from various formats
+function extractPayload(body: any): WebhookPayload | null {
+  if (!body) return null;
   
-  // 2. Nested in 'data' field as object
-  if (body?.data && typeof body.data === 'object' && body.data.secret) {
-    return body.data as WebhookPayload;
-  }
+  // Direct object with secret
+  if (body.secret) return body;
   
-  // 3. Nested in 'data' field as string (might have 'data' prefix from Zapier bug)
-  if (body?.data && typeof body.data === 'string') {
+  // Nested in data as object
+  if (body.data?.secret) return body.data;
+  
+  // Nested in data as string
+  if (typeof body.data === 'string') {
     let str = body.data;
     if (str.startsWith('data')) str = str.substring(4);
-    try {
-      return JSON.parse(str) as WebhookPayload;
-    } catch {}
+    try { return JSON.parse(str); } catch {}
   }
   
-  // 4. Body is a string itself
-  if (typeof body === 'string') {
-    let str = body;
+  // Check keys for JSON
+  for (const key of Object.keys(body)) {
+    let str = key;
     if (str.startsWith('data')) str = str.substring(4);
-    try {
-      return JSON.parse(str) as WebhookPayload;
-    } catch {}
-  }
-  
-  // 5. Raw body string provided separately
-  if (rawBodyStr) {
-    let str = rawBodyStr;
-    if (str.startsWith('data')) str = str.substring(4);
-    try {
-      return JSON.parse(str) as WebhookPayload;
-    } catch {}
-  }
-  
-  // 6. Check object keys (Zapier might send 'data{"secret":...' as a KEY)
-  if (body && typeof body === 'object') {
-    for (const key of Object.keys(body)) {
-      let str = key;
-      if (str.startsWith('data')) str = str.substring(4);
-      if (str.startsWith('{')) {
-        try {
-          return JSON.parse(str) as WebhookPayload;
-        } catch {}
-      }
+    if (str.startsWith('{')) {
+      try { return JSON.parse(str); } catch {}
     }
   }
   
   return null;
 }
 
-// Collect raw body chunks
-async function collectBody(req: VercelRequest): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -100,50 +64,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Collect raw body since bodyParser is disabled
-    const rawBodyStr = await collectBody(req);
+    const payload = extractPayload(req.body);
     
-    // Try to parse it
-    let parsedBody: any = null;
-    
-    // First try direct JSON parse
-    try {
-      parsedBody = JSON.parse(rawBodyStr);
-    } catch {
-      // If starts with 'data', strip it and try again
-      if (rawBodyStr.startsWith('data{')) {
-        try {
-          parsedBody = JSON.parse(rawBodyStr.substring(4));
-        } catch {
-          // Still failed
-        }
-      }
-    }
-    
-    // Try to get payload
-    const payload = extractPayload(parsedBody, rawBodyStr);
-    
-    console.log('req.body:', JSON.stringify(req.body));
-    console.log('rawBodyStr:', rawBodyStr);
-    console.log('payload:', JSON.stringify(payload));
-
     if (!payload) {
       return res.status(400).json({ 
-        error: 'Could not parse request body',
-        receivedBody: req.body,
-        receivedRaw: rawBodyStr.substring(0, 200)
+        error: 'Could not parse body',
+        received: JSON.stringify(req.body).substring(0, 500)
       });
     }
 
-    // Verify secret
     if (payload.secret !== WEBHOOK_SECRET) {
-      return res.status(401).json({ 
-        error: 'Unauthorized',
-        hint: payload.secret ? 'wrong secret' : 'no secret found'
-      });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Handle actions
     switch (payload.action) {
       case 'add': {
         if (!payload.task?.title) {
@@ -188,41 +121,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .ilike('title', payload.task_title)
           .single();
 
-        if (!task) {
-          return res.status(404).json({ error: 'Task not found' });
-        }
+        if (!task) return res.status(404).json({ error: 'Task not found' });
 
-        const today = new Date().toISOString().split('T')[0];
         await supabase.from('completions').insert({
           task_id: task.id,
-          scheduled_for: today,
+          scheduled_for: new Date().toISOString().split('T')[0],
         });
 
-        return res.status(200).json({ 
-          success: true, 
-          message: `Task "${payload.task_title}" marked complete` 
-        });
+        return res.status(200).json({ success: true, message: `Task completed` });
       }
 
-      case 'message': {
-        return res.status(200).json({ 
-          success: true, 
-          message: 'Message received',
-          content: payload.message 
-        });
-      }
+      case 'message':
+        return res.status(200).json({ success: true, message: 'Message received' });
 
       default:
         return res.status(400).json({ error: 'Invalid action' });
     }
   } catch (err) {
-    console.error('Webhook error:', err);
     return res.status(500).json({ error: 'Internal server error', details: String(err) });
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
