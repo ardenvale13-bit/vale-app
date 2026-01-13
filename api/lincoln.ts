@@ -33,6 +33,15 @@ function extractPayload(body: any): WebhookPayload | null {
   // Direct object with secret
   if (body.secret) return body;
   
+  // Body is a string (text/plain content-type)
+  if (typeof body === 'string') {
+    let str = body;
+    if (str.startsWith('data{')) str = str.substring(4);
+    if (str.startsWith('{')) {
+      try { return JSON.parse(str); } catch {}
+    }
+  }
+  
   // Nested in data as object
   if (body.data?.secret) return body.data;
   
@@ -43,12 +52,14 @@ function extractPayload(body: any): WebhookPayload | null {
     try { return JSON.parse(str); } catch {}
   }
   
-  // Check keys for JSON
-  for (const key of Object.keys(body)) {
-    let str = key;
-    if (str.startsWith('data')) str = str.substring(4);
-    if (str.startsWith('{')) {
-      try { return JSON.parse(str); } catch {}
+  // Check keys for JSON (weird edge case)
+  if (typeof body === 'object') {
+    for (const key of Object.keys(body)) {
+      let str = key;
+      if (str.startsWith('data')) str = str.substring(4);
+      if (str.startsWith('{')) {
+        try { return JSON.parse(str); } catch {}
+      }
     }
   }
   
