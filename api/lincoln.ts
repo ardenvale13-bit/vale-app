@@ -75,25 +75,42 @@ export default async function handler(req: Request): Promise<Response> {
     // Get raw body text - no automatic parsing!
     const rawBody = await req.text();
     
+    // TEMP DEBUG: Return raw body for inspection
+    return new Response(JSON.stringify({ 
+      debug: true,
+      rawBodyLength: rawBody.length,
+      rawBody: rawBody.substring(0, 500),
+      startsWithData: rawBody.startsWith('data'),
+      first20Chars: rawBody.substring(0, 20),
+      charCodes: rawBody.substring(0, 20).split('').map(c => c.charCodeAt(0))
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+    
     const payload = extractPayload(rawBody);
 
     if (!payload) {
       return new Response(JSON.stringify({ 
         error: 'Could not parse body',
-        received: rawBody.substring(0, 200)
+        rawBody: rawBody.substring(0, 500)
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // TEMP: Always return what we received for debugging
     if (payload.secret !== WEBHOOK_SECRET) {
       return new Response(JSON.stringify({ 
         error: 'Unauthorized',
         debug: {
           receivedSecret: payload.secret,
           expectedSecret: WEBHOOK_SECRET,
-          rawBodyPreview: rawBody.substring(0, 100)
+          secretMatch: payload.secret === WEBHOOK_SECRET,
+          secretLength: payload.secret?.length,
+          expectedLength: WEBHOOK_SECRET.length,
+          rawBodyPreview: rawBody.substring(0, 300)
         }
       }), {
         status: 401,
