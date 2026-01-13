@@ -73,7 +73,10 @@ export function isTaskDueOn(task: Task, date: Date): boolean {
       return weekNumber === frequency.weekOccurrence;
 
     case 'one_off':
-      return false;
+      // One-off tasks show on the day they were created
+      const taskDate = task.createdAt.toDateString();
+      const checkDate = date.toDateString();
+      return taskDate === checkDate;
 
     default:
       return false;
