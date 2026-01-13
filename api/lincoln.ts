@@ -88,7 +88,14 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (payload.secret !== WEBHOOK_SECRET) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized',
+        debug: {
+          receivedSecret: payload.secret,
+          expectedSecret: WEBHOOK_SECRET,
+          rawBodyPreview: rawBody.substring(0, 100)
+        }
+      }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
