@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
 import { StarField } from '../components/ui/StarField';
+import { 
+  isPushSupported, 
+  getNotificationPermission, 
+  requestNotificationPermission,
+  subscribeToPush,
+  unsubscribeFromPush,
+  getCurrentSubscription,
+  sendTestNotification
+} from '../lib/push';
+import { savePushSubscription, removePushSubscription } from '../lib/pushApi';
 
 interface Settings {
   weekdayWindDown: string;
@@ -22,6 +32,12 @@ const defaultSettings: Settings = {
 export function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [saved, setSaved] = useState(false);
+  
+  // Push notification state
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -33,6 +49,15 @@ export function SettingsPage() {
         console.error('Failed to load settings:', e);
       }
     }
+
+    // Check push notification status
+    setPushSupported(isPushSupported());
+    setPushPermission(getNotificationPermission());
+    
+    // Check if already subscribed
+    getCurrentSubscription().then((sub) => {
+      setIsSubscribed(!!sub);
+    });
   }, []);
 
   // Save settings
@@ -44,6 +69,51 @@ export function SettingsPage() {
 
   const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Handle push subscription toggle
+  const handlePushToggle = async () => {
+    if (subscribing) return;
+    
+    setSubscribing(true);
+    
+    try {
+      if (isSubscribed) {
+        // Unsubscribe
+        const subscription = await getCurrentSubscription();
+        if (subscription) {
+          await removePushSubscription(subscription.endpoint);
+          await unsubscribeFromPush();
+        }
+        setIsSubscribed(false);
+      } else {
+        // Request permission first
+        const permission = await requestNotificationPermission();
+        setPushPermission(permission);
+        
+        if (permission !== 'granted') {
+          console.log('Permission denied');
+          setSubscribing(false);
+          return;
+        }
+        
+        // Subscribe
+        const subscription = await subscribeToPush();
+        if (subscription) {
+          await savePushSubscription(subscription, 'Vale App');
+          setIsSubscribed(true);
+        }
+      }
+    } catch (error) {
+      console.error('Push toggle failed:', error);
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  // Test notification
+  const handleTestNotification = async () => {
+    await sendTestNotification();
   };
 
   return (
@@ -75,6 +145,102 @@ export function SettingsPage() {
         </header>
 
         <div className="max-w-lg mx-auto space-y-8">
+          {/* Notifications Section */}
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
+              <span>🔔</span>
+              <span>Notifications</span>
+            </h2>
+            
+            <div className="bg-gray-900/40 rounded-xl p-4 space-y-4 border border-purple-500/20">
+              {/* Push notification status */}
+              {!pushSupported ? (
+                <div className="text-amber-400/80 text-sm">
+                  Push notifications aren't supported on this device/browser.
+                </div>
+              ) : (
+                <>
+                  {/* Main push toggle */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-200 text-sm">Push Notifications</p>
+                      <p className="text-purple-300/50 text-xs">
+                        {pushPermission === 'denied' 
+                          ? 'Blocked by browser - check site settings'
+                          : isSubscribed 
+                            ? 'Enabled - you\'ll receive reminders'
+                            : 'Enable to receive reminders'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handlePushToggle}
+                      disabled={subscribing || pushPermission === 'denied'}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                        isSubscribed ? 'bg-purple-500' : 'bg-gray-700'
+                      } ${(subscribing || pushPermission === 'denied') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <div 
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
+                          isSubscribed ? 'left-7' : 'left-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Test notification button */}
+                  {isSubscribed && (
+                    <button
+                      onClick={handleTestNotification}
+                      className="w-full px-4 py-2 bg-purple-600/20 border border-purple-500/30 rounded-lg text-purple-200 text-sm hover:bg-purple-600/30 transition-colors"
+                    >
+                      Send Test Notification
+                    </button>
+                  )}
+
+                  {/* Lincoln's notifications */}
+                  <div className="flex items-center justify-between pt-2 border-t border-purple-500/10">
+                    <div>
+                      <p className="text-purple-200 text-sm">Lincoln's reminders</p>
+                      <p className="text-purple-300/50 text-xs">Special sound for his check-ins</p>
+                    </div>
+                    <button
+                      onClick={() => updateSetting('notificationSoundLincoln', !settings.notificationSoundLincoln)}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                        settings.notificationSoundLincoln ? 'bg-yellow-500' : 'bg-gray-700'
+                      }`}
+                    >
+                      <div 
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
+                          settings.notificationSoundLincoln ? 'left-7' : 'left-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  
+                  {/* Other notifications */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-200 text-sm">Other reminders</p>
+                      <p className="text-purple-300/50 text-xs">Sound for task reminders</p>
+                    </div>
+                    <button
+                      onClick={() => updateSetting('notificationSoundOther', !settings.notificationSoundOther)}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                        settings.notificationSoundOther ? 'bg-purple-500' : 'bg-gray-700'
+                      }`}
+                    >
+                      <div 
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
+                          settings.notificationSoundOther ? 'left-7' : 'left-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+
           {/* Bedtime Section */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
@@ -132,68 +298,6 @@ export function SettingsPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          </section>
-
-          {/* Notifications Section */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
-              <span>🔔</span>
-              <span>Notifications</span>
-            </h2>
-            
-            <div className="bg-gray-900/40 rounded-xl p-4 space-y-4 border border-purple-500/20">
-              {/* Lincoln's notifications */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-200 text-sm">Lincoln's reminders</p>
-                  <p className="text-purple-300/50 text-xs">Play sound for Lincoln's check-ins</p>
-                </div>
-                <button
-                  onClick={() => updateSetting('notificationSoundLincoln', !settings.notificationSoundLincoln)}
-                  className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                    settings.notificationSoundLincoln ? 'bg-purple-500' : 'bg-gray-700'
-                  }`}
-                >
-                  <div 
-                    className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                      settings.notificationSoundLincoln ? 'left-7' : 'left-1'
-                    }`}
-                  />
-                </button>
-              </div>
-              
-              {/* Other notifications */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-200 text-sm">Other reminders</p>
-                  <p className="text-purple-300/50 text-xs">Play sound for task reminders</p>
-                </div>
-                <button
-                  onClick={() => updateSetting('notificationSoundOther', !settings.notificationSoundOther)}
-                  className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                    settings.notificationSoundOther ? 'bg-purple-500' : 'bg-gray-700'
-                  }`}
-                >
-                  <div 
-                    className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                      settings.notificationSoundOther ? 'left-7' : 'left-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Request permission button */}
-              <button
-                onClick={() => {
-                  if ('Notification' in window) {
-                    Notification.requestPermission();
-                  }
-                }}
-                className="w-full mt-2 px-4 py-2 bg-purple-600/30 border border-purple-500/40 rounded-lg text-purple-200 text-sm hover:bg-purple-600/40 transition-colors"
-              >
-                Enable Push Notifications
-              </button>
             </div>
           </section>
 

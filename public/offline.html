@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vale - Offline</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%);
+      font-family: 'Quicksand', sans-serif;
+      color: #f0f4ff;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container {
+      max-width: 400px;
+    }
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ff6b9d 0%, #b794f6 50%, #00fff7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: rgba(183, 148, 246, 0.7);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    button {
+      background: rgba(183, 148, 246, 0.2);
+      border: 1px solid rgba(183, 148, 246, 0.4);
+      color: #b794f6;
+      padding: 0.75rem 2rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: rgba(183, 148, 246, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vale</h1>
+    <p>You're offline right now, dove. Check your connection and try again.</p>
+    <button onclick="window.location.reload()">Try Again</button>
+  </div>
+</body>
+</html>
