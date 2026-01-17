@@ -1,7 +1,7 @@
 // CompletionAnimations.tsx
 // Category-specific celebration animations when tasks are completed
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 type ParticleType = 'glitter' | 'stars' | 'flowers' | 'fireworks' | 'powder' | 'cat';
 
@@ -393,12 +393,28 @@ export function CompletionAnimation({
   originY 
 }: CompletionAnimationProps) {
   const [particles, setParticles] = useState<Particle[]>([]);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const isAnimatingRef = useRef(false);
+  const lastTriggerRef = useRef(0);
+  const hasTriggeredRef = useRef(false);
+
+  // Reset hasTriggered when trigger goes false
+  useEffect(() => {
+    if (!trigger) {
+      hasTriggeredRef.current = false;
+    }
+  }, [trigger]);
 
   useEffect(() => {
-    if (!trigger || isAnimating) return;
+    // Only trigger once per trigger=true cycle
+    if (!trigger || hasTriggeredRef.current || isAnimatingRef.current) return;
+    
+    // Debounce - don't trigger if we just triggered within 500ms
+    const now = Date.now();
+    if ((now - lastTriggerRef.current) < 500) return;
 
-    setIsAnimating(true);
+    hasTriggeredRef.current = true;
+    lastTriggerRef.current = now;
+    isAnimatingRef.current = true;
     const particleType = getCategoryParticleType(category);
     
     // Different particle counts for different types
@@ -421,7 +437,7 @@ export function CompletionAnimation({
     }
 
     setParticles(newParticles);
-  }, [trigger, isAnimating, category, originX, originY]);
+  }, [trigger, category, originX, originY]);
 
   useEffect(() => {
     if (particles.length === 0) return;
@@ -481,7 +497,7 @@ export function CompletionAnimation({
         }).filter(p => p.opacity > 0);
 
         if (updated.length === 0) {
-          setIsAnimating(false);
+          isAnimatingRef.current = false;
           onComplete?.();
         }
 
