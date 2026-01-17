@@ -9,7 +9,7 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 /**
  * Convert base64 VAPID key to Uint8Array for subscription
  */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
     .replace(/-/g, '+')
@@ -21,7 +21,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
-  return outputArray;
+  return outputArray.buffer as ArrayBuffer;
 }
 
 /**
@@ -152,6 +152,5 @@ export async function sendTestNotification(): Promise<void> {
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     tag: 'test-notification',
-    vibrate: [100, 50, 100]
   });
 }

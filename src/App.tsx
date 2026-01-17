@@ -4,6 +4,7 @@ import { BottomNav, type NavTab } from './components/navigation/BottomNav';
 import { TodayPage } from './pages/TodayPage';
 import { TasksPage } from './pages/TasksPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AddTaskModal } from './components/tasks/AddTaskModal';
 import { 
   fetchTasks, 
   fetchCompletionsForDate, 
@@ -24,6 +25,7 @@ function App() {
   const [completions, setCompletions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
 
   // Load tasks and completions on mount
   useEffect(() => {
@@ -101,10 +103,14 @@ function App() {
     }
   }, [completions]);
 
-  // Handle add task (placeholder for now)
+  // Handle add task
   const handleAddTask = () => {
-    // TODO: Open add task modal
-    console.log('Add task clicked');
+    setShowAddTaskModal(true);
+  };
+
+  // Handle task added (refresh happens automatically via subscription)
+  const handleTaskAdded = () => {
+    // Real-time subscription will update the task list automatically
   };
 
   // Get today's tasks for the Today view
@@ -193,6 +199,13 @@ function App() {
       <BottomNav 
         activeTab={activeTab} 
         onTabChange={setActiveTab} 
+      />
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={showAddTaskModal}
+        onClose={() => setShowAddTaskModal(false)}
+        onTaskAdded={handleTaskAdded}
       />
     </div>
   );
