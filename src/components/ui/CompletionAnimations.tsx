@@ -426,8 +426,6 @@ export function CompletionAnimation({
   useEffect(() => {
     if (particles.length === 0) return;
 
-    const particleType = particles[0]?.type;
-
     const interval = setInterval(() => {
       setParticles(prev => {
         const updated = prev.map(p => {
