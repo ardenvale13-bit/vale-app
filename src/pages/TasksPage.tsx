@@ -43,7 +43,7 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditT
       <StarField count={30} intensity={0.3} />
 
       {/* Main content - scrollable */}
-      <div className="relative z-10 p-6 pb-40">
+      <div className="relative z-10 p-6 pb-48">
         {/* Header */}
         <header className="mb-6 pt-4">
           <div className="flex items-center justify-between">
