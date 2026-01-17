@@ -192,9 +192,9 @@ function App() {
       {/* Main app content */}
       {!showLoadingScreen && (
         <div
-          className="min-h-screen"
           style={{
             background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+            minHeight: '100vh',
           }}
         >
           {/* Page content based on active tab */}

@@ -37,15 +37,15 @@ export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditT
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
 
   return (
-    <div className={`min-h-screen relative bloom-transition ${bloom.level}`} style={{ overflowX: 'hidden' }}>
+    <div className={`relative bloom-transition ${bloom.level}`} style={{ overflowX: 'hidden', minHeight: '100vh' }}>
       {/* Floating stars - intensity based on bloom */}
       <StarField count={60} intensity={0.3 + (starIntensity * 0.7)} />
 
       {/* Gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-purple-900/20 pointer-events-none" />
 
-      {/* Main content */}
-      <div className="relative z-10 min-h-screen p-6 pb-32">
+      {/* Main content - scrollable */}
+      <div className="relative z-10 p-6 pb-40">
         {/* Header */}
         <header className="text-center mb-8 pt-4">
           <h1
