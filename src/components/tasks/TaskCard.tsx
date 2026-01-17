@@ -13,7 +13,7 @@ interface TaskCardProps {
 export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: TaskCardProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const config = categoryConfig[task.category as keyof typeof categoryConfig];
   const isLincoln = task.source === 'lincoln';
 

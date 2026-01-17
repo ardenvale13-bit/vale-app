@@ -43,8 +43,8 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
       setTitle(editingTask.title);
       setDescription(editingTask.description || '');
       setCategory(editingTask.category as TaskCategory);
-      setFrequencyType(editingTask.frequencyType as 'daily' | 'specific_days' | 'one_off');
-      setSelectedDays(editingTask.frequencyDays || []);
+      setFrequencyType(editingTask.frequency.type as 'daily' | 'specific_days' | 'one_off');
+      setSelectedDays(editingTask.frequency.days || []);
       setReminderTime(editingTask.reminderTimes?.[0] || '');
     } else {
       // Reset form for new task
