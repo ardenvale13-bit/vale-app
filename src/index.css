@@ -32,12 +32,21 @@
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: 'Quicksand', sans-serif;
   background: var(--bg-gradient);
   min-height: 100vh;
   color: var(--soft-white);
   overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root {
+  min-height: 100%;
 }
 
 /* Lincoln's Gold Tracery Effect */
