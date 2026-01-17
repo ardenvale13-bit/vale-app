@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, type MouseEvent } from 'react';
 import { categoryConfig } from '../../data/categories';
 import type { Task } from '../../utils/taskUtils';
 
 interface TaskCardProps {
   task: Task;
   isCompleted: boolean;
-  onToggle: (taskId: string) => void;
+  onToggle: (taskId: string, event?: MouseEvent) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
 }
@@ -17,13 +17,13 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
   const config = categoryConfig[task.category as keyof typeof categoryConfig];
   const isLincoln = task.source === 'lincoln';
 
-  const handleToggle = () => {
+  const handleToggle = (e: MouseEvent) => {
     if (showMenu) return; // Don't toggle if menu is open
     if (!isCompleted) {
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);
     }
-    onToggle(task.id);
+    onToggle(task.id, e);
   };
 
   const handleTouchStart = () => {

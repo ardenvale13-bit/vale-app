@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { StarField } from '../components/ui/StarField';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { categoryConfig } from '../data/categories';
@@ -8,7 +8,7 @@ import type { Task } from '../utils/taskUtils';
 interface TasksPageProps {
   tasks: Task[];
   completions: Set<string>;
-  onToggleTask: (taskId: string) => void;
+  onToggleTask: (taskId: string, event?: MouseEvent) => void;
   onAddTask?: () => void;
   onEditTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string) => void;

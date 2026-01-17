@@ -1,4 +1,4 @@
-
+import type { MouseEvent } from 'react';
 import { StarField } from '../components/ui/StarField';
 import { BloomIndicator } from '../components/ui/BloomIndicator';
 import { TaskCard } from '../components/tasks/TaskCard';
@@ -14,7 +14,7 @@ import type { Task } from '../utils/taskUtils';
 interface TodayPageProps {
   tasks: Task[];
   completions: Set<string>;
-  onToggleTask: (taskId: string) => void;
+  onToggleTask: (taskId: string, event?: MouseEvent) => void;
   onAddTask?: () => void;
   onEditTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string) => void;

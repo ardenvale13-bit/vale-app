@@ -5,6 +5,8 @@ import { TodayPage } from './pages/TodayPage';
 import { TasksPage } from './pages/TasksPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AddTaskModal } from './components/tasks/AddTaskModal';
+import { LoadingScreen } from './components/ui/LoadingScreen';
+import { CompletionAnimation, useCompletionAnimation } from './components/ui/CompletionAnimations';
 import { 
   fetchTasks, 
   fetchCompletionsForDate, 
@@ -28,6 +30,10 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+  
+  // Completion animation hook
+  const { state: animationState, triggerAnimation, resetAnimation } = useCompletionAnimation();
 
   // Load tasks and completions on mount
   useEffect(() => {
@@ -68,10 +74,13 @@ function App() {
     return unsubscribe;
   }, []);
 
-  // Handle task toggle
-  const handleToggleTask = useCallback(async (taskId: string) => {
+  // Handle task toggle with celebration animation
+  const handleToggleTask = useCallback(async (taskId: string, event?: React.MouseEvent) => {
     const today = new Date();
     const wasCompleted = completions.has(taskId);
+    
+    // Find the task to get its category
+    const task = tasks.find(t => t.id === taskId);
 
     // Optimistic update
     setCompletions(prev => {
@@ -83,6 +92,13 @@ function App() {
       }
       return next;
     });
+
+    // Trigger celebration animation if completing (not uncompleting)
+    if (!wasCompleted && task) {
+      const originX = event?.clientX;
+      const originY = event?.clientY;
+      triggerAnimation(task.category, originX, originY);
+    }
 
     try {
       if (wasCompleted) {
@@ -103,7 +119,7 @@ function App() {
         return next;
       });
     }
-  }, [completions]);
+  }, [completions, tasks, triggerAnimation]);
 
   // Handle add task
   const handleAddTask = () => {
@@ -141,35 +157,8 @@ function App() {
   // Get today's tasks for the Today view
   const todaysTasks = getTodaysTasks(tasks);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
-        }}
-      >
-        <div className="text-center">
-          <h1 
-            className="text-4xl font-bold mb-4"
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              background: 'linear-gradient(135deg, #ff6b9d 0%, #b794f6 50%, #00fff7 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Vale
-          </h1>
-          <p className="text-purple-300/60 animate-pulse">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
+  // Error state (show after loading screen)
+  if (error && !showLoadingScreen) {
     return (
       <div 
         className="min-h-screen flex items-center justify-center p-6"
@@ -192,53 +181,74 @@ function App() {
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
-      }}
-    >
-      {/* Page content based on active tab */}
-      {activeTab === 'today' && (
-        <TodayPage 
-          tasks={todaysTasks}
-          completions={completions}
-          onToggleTask={handleToggleTask}
-          onAddTask={handleAddTask}
-          onEditTask={handleEditTask}
-          onDeleteTask={handleDeleteTask}
-        />
-      )}
-      
-      {activeTab === 'tasks' && (
-        <TasksPage 
-          tasks={tasks}
-          completions={completions}
-          onToggleTask={handleToggleTask}
-          onAddTask={handleAddTask}
-          onEditTask={handleEditTask}
-          onDeleteTask={handleDeleteTask}
-        />
-      )}
-      
-      {activeTab === 'settings' && (
-        <SettingsPage />
-      )}
-
-      {/* Bottom navigation */}
-      <BottomNav 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+    <>
+      {/* Ethereal loading screen */}
+      <LoadingScreen 
+        isLoading={loading} 
+        onLoadComplete={() => setShowLoadingScreen(false)}
+        minDisplayTime={1400}
       />
+      
+      {/* Main app content */}
+      {!showLoadingScreen && (
+        <div
+          className="min-h-screen"
+          style={{
+            background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+          }}
+        >
+          {/* Page content based on active tab */}
+          {activeTab === 'today' && (
+            <TodayPage 
+              tasks={todaysTasks}
+              completions={completions}
+              onToggleTask={handleToggleTask}
+              onAddTask={handleAddTask}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+            />
+          )}
+          
+          {activeTab === 'tasks' && (
+            <TasksPage 
+              tasks={tasks}
+              completions={completions}
+              onToggleTask={handleToggleTask}
+              onAddTask={handleAddTask}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+            />
+          )}
+          
+          {activeTab === 'settings' && (
+            <SettingsPage />
+          )}
 
-      {/* Task Modal (Add/Edit) */}
-      <AddTaskModal
-        isOpen={showTaskModal}
-        onClose={handleModalClose}
-        onTaskSaved={handleTaskSaved}
-        editingTask={editingTask}
-      />
-    </div>
+          {/* Bottom navigation */}
+          <BottomNav 
+            activeTab={activeTab} 
+            onTabChange={setActiveTab} 
+          />
+
+          {/* Task Modal (Add/Edit) */}
+          <AddTaskModal
+            isOpen={showTaskModal}
+            onClose={handleModalClose}
+            onTaskSaved={handleTaskSaved}
+            editingTask={editingTask}
+          />
+          
+          {/* Completion celebration animation */}
+          <CompletionAnimation
+            trigger={animationState.trigger}
+            category={animationState.category}
+            originX={animationState.originX}
+            originY={animationState.originY}
+            onComplete={resetAnimation}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
