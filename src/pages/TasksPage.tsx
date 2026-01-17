@@ -11,9 +11,10 @@ interface TasksPageProps {
   onToggleTask: (taskId: string) => void;
   onAddTask?: () => void;
   onEditTask?: (task: Task) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
-export function TasksPage({ tasks, completions, onToggleTask, onAddTask }: TasksPageProps) {
+export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TasksPageProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
   
   // Filter tasks by category
@@ -140,6 +141,8 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask }: Tasks
                       task={task}
                       isCompleted={completions.has(task.id)}
                       onToggle={onToggleTask}
+                      onEdit={onEditTask}
+                      onDelete={onDeleteTask}
                     />
                   ))}
                 </div>

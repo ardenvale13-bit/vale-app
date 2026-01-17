@@ -100,6 +100,43 @@ export async function archiveTask(taskId: string): Promise<void> {
   }
 }
 
+// Hard delete a task
+export async function deleteTask(taskId: string): Promise<void> {
+  // First delete any completions for this task
+  await supabase
+    .from('completions')
+    .delete()
+    .eq('task_id', taskId);
+
+  // Then delete the task itself
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', taskId);
+
+  if (error) {
+    console.error('Error deleting task:', error);
+    throw error;
+  }
+}
+
+// Update an existing task
+export async function updateTask(taskId: string, updates: Partial<DbTask>): Promise<DbTask> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating task:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 // Subscribe to real-time task changes
 export function subscribeToTasks(callback: (tasks: DbTask[]) => void) {
   const channel = supabase

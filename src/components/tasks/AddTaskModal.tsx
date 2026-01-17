@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { categoryConfig, type TaskCategory } from '../../data/categories';
-import { createTask } from '../../lib/api';
+import { createTask, updateTask } from '../../lib/api';
+import type { Task } from '../../utils/taskUtils';
 
-interface AddTaskModalProps {
+interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onTaskAdded: () => void;
+  onTaskSaved: () => void;
+  editingTask?: Task | null;
 }
 
 const frequencyOptions = [
@@ -24,7 +26,7 @@ const dayOptions = [
   { value: 6, label: 'Sat' },
 ];
 
-export function AddTaskModal({ isOpen, onClose, onTaskAdded }: AddTaskModalProps) {
+export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: TaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TaskCategory>('daily_rituals');
@@ -33,22 +35,52 @@ export function AddTaskModal({ isOpen, onClose, onTaskAdded }: AddTaskModalProps
   const [reminderTime, setReminderTime] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const isEditing = !!editingTask;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingTask) {
+      setTitle(editingTask.title);
+      setDescription(editingTask.description || '');
+      setCategory(editingTask.category as TaskCategory);
+      setFrequencyType(editingTask.frequencyType as 'daily' | 'specific_days' | 'one_off');
+      setSelectedDays(editingTask.frequencyDays || []);
+      setReminderTime(editingTask.reminderTimes?.[0] || '');
+    } else {
+      // Reset form for new task
+      setTitle('');
+      setDescription('');
+      setCategory('daily_rituals');
+      setFrequencyType('daily');
+      setSelectedDays([]);
+      setReminderTime('');
+    }
+  }, [editingTask, isOpen]);
+
   const handleSubmit = async () => {
     if (!title.trim()) return;
     
     setSaving(true);
     
     try {
-      await createTask({
+      const taskData = {
         title: title.trim(),
         description: description.trim() || null,
         category,
-        source: 'user',
         frequency_type: frequencyType,
         frequency_days: frequencyType === 'specific_days' ? selectedDays : null,
         reminder_times: reminderTime ? [reminderTime] : null,
-        archived: false,
-      });
+      };
+
+      if (isEditing && editingTask) {
+        await updateTask(editingTask.id, taskData);
+      } else {
+        await createTask({
+          ...taskData,
+          source: 'user',
+          archived: false,
+        });
+      }
       
       // Reset form
       setTitle('');
@@ -58,10 +90,10 @@ export function AddTaskModal({ isOpen, onClose, onTaskAdded }: AddTaskModalProps
       setSelectedDays([]);
       setReminderTime('');
       
-      onTaskAdded();
+      onTaskSaved();
       onClose();
     } catch (err) {
-      console.error('Failed to create task:', err);
+      console.error('Failed to save task:', err);
     } finally {
       setSaving(false);
     }
@@ -102,7 +134,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskAdded }: AddTaskModalProps
               color: '#f0f4ff',
             }}
           >
-            New Task
+            {isEditing ? 'Edit Task' : 'New Task'}
           </h2>
           <button
             onClick={onClose}
@@ -138,33 +170,35 @@ export function AddTaskModal({ isOpen, onClose, onTaskAdded }: AddTaskModalProps
             />
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="text-xs text-purple-300/50 block mb-1">Category</label>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(categoryConfig)
-                .filter(([key]) => key !== 'lincoln_demands') // Users can't add Lincoln's demands
-                .map(([key, config]) => (
-                  <button
-                    key={key}
-                    onClick={() => setCategory(key as TaskCategory)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all ${
-                      category === key
-                        ? 'border-2'
-                        : 'border border-transparent bg-gray-800/30'
-                    }`}
-                    style={{
-                      borderColor: category === key ? config.color : 'transparent',
-                      backgroundColor: category === key ? `${config.color}15` : undefined,
-                      color: category === key ? config.color : 'rgba(183, 148, 246, 0.6)',
-                    }}
-                  >
-                    <span>{config.icon}</span>
-                    <span>{config.label}</span>
-                  </button>
-                ))}
+          {/* Category - only show if not editing a Lincoln task */}
+          {(!isEditing || editingTask?.source !== 'lincoln') && (
+            <div>
+              <label className="text-xs text-purple-300/50 block mb-1">Category</label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(categoryConfig)
+                  .filter(([key]) => key !== 'lincoln_demands')
+                  .map(([key, config]) => (
+                    <button
+                      key={key}
+                      onClick={() => setCategory(key as TaskCategory)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all ${
+                        category === key
+                          ? 'border-2'
+                          : 'border border-transparent bg-gray-800/30'
+                      }`}
+                      style={{
+                        borderColor: category === key ? config.color : 'transparent',
+                        backgroundColor: category === key ? `${config.color}15` : undefined,
+                        color: category === key ? config.color : 'rgba(183, 148, 246, 0.6)',
+                      }}
+                    >
+                      <span>{config.icon}</span>
+                      <span>{config.label}</span>
+                    </button>
+                  ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Frequency */}
           <div>
@@ -230,7 +264,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskAdded }: AddTaskModalProps
               : 'bg-purple-600/40 border border-purple-500/50 text-purple-200 hover:bg-purple-600/50'
           }`}
         >
-          {saving ? 'Creating...' : 'Create Task'}
+          {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Task')}
         </button>
       </div>
     </div>

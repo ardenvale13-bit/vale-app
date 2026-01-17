@@ -10,6 +10,7 @@ import {
   fetchCompletionsForDate, 
   completeTask, 
   uncompleteTask,
+  deleteTask,
   subscribeToTasks 
 } from './lib/api';
 import type { DbCompletion } from './lib/supabase';
@@ -25,7 +26,8 @@ function App() {
   const [completions, setCompletions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Load tasks and completions on mount
   useEffect(() => {
@@ -105,11 +107,34 @@ function App() {
 
   // Handle add task
   const handleAddTask = () => {
-    setShowAddTaskModal(true);
+    setEditingTask(null);
+    setShowTaskModal(true);
   };
 
-  // Handle task added (refresh happens automatically via subscription)
-  const handleTaskAdded = () => {
+  // Handle edit task
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setShowTaskModal(true);
+  };
+
+  // Handle delete task
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+      // Real-time subscription will update the list
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setShowTaskModal(false);
+    setEditingTask(null);
+  };
+
+  // Handle task saved (refresh happens automatically via subscription)
+  const handleTaskSaved = () => {
     // Real-time subscription will update the task list automatically
   };
 
@@ -180,6 +205,8 @@ function App() {
           completions={completions}
           onToggleTask={handleToggleTask}
           onAddTask={handleAddTask}
+          onEditTask={handleEditTask}
+          onDeleteTask={handleDeleteTask}
         />
       )}
       
@@ -189,6 +216,8 @@ function App() {
           completions={completions}
           onToggleTask={handleToggleTask}
           onAddTask={handleAddTask}
+          onEditTask={handleEditTask}
+          onDeleteTask={handleDeleteTask}
         />
       )}
       
@@ -202,11 +231,12 @@ function App() {
         onTabChange={setActiveTab} 
       />
 
-      {/* Add Task Modal */}
+      {/* Task Modal (Add/Edit) */}
       <AddTaskModal
-        isOpen={showAddTaskModal}
-        onClose={() => setShowAddTaskModal(false)}
-        onTaskAdded={handleTaskAdded}
+        isOpen={showTaskModal}
+        onClose={handleModalClose}
+        onTaskSaved={handleTaskSaved}
+        editingTask={editingTask}
       />
     </div>
   );

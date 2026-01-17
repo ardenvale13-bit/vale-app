@@ -16,9 +16,11 @@ interface TodayPageProps {
   completions: Set<string>;
   onToggleTask: (taskId: string) => void;
   onAddTask?: () => void;
+  onEditTask?: (task: Task) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
-export function TodayPage({ tasks, completions, onToggleTask, onAddTask }: TodayPageProps) {
+export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TodayPageProps) {
   const groupedTasks = groupTasksByCategory(tasks);
   const todaysTaskIds = new Set(tasks.map(t => t.id));
   
@@ -126,6 +128,8 @@ export function TodayPage({ tasks, completions, onToggleTask, onAddTask }: Today
                         task={task}
                         isCompleted={completions.has(task.id)}
                         onToggle={onToggleTask}
+                        onEdit={onEditTask}
+                        onDelete={onDeleteTask}
                       />
                     </div>
                   ))}
