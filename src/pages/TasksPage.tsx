@@ -33,9 +33,10 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditT
 
   return (
     <div 
-      className="min-h-screen relative overflow-hidden"
+      className="min-h-screen relative"
       style={{
         background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+        overflowX: 'hidden',
       }}
     >
       {/* Subtle stars */}

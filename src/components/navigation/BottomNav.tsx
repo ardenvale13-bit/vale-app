@@ -102,11 +102,11 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     <nav 
       className="fixed bottom-0 left-0 right-0 z-50"
     >
-      {/* Top gradient border */}
+      {/* Top gradient border - subtle */}
       <div 
         className="h-px"
         style={{
-          background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.15), transparent)',
         }}
       />
       

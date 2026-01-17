@@ -37,7 +37,7 @@ export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditT
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
 
   return (
-    <div className={`min-h-screen relative overflow-hidden bloom-transition ${bloom.level}`}>
+    <div className={`min-h-screen relative bloom-transition ${bloom.level}`} style={{ overflowX: 'hidden' }}>
       {/* Floating stars - intensity based on bloom */}
       <StarField count={60} intensity={0.3 + (starIntensity * 0.7)} />
 
