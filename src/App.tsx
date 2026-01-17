@@ -179,6 +179,7 @@ function App() {
           tasks={todaysTasks}
           completions={completions}
           onToggleTask={handleToggleTask}
+          onAddTask={handleAddTask}
         />
       )}
       

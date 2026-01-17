@@ -15,9 +15,10 @@ interface TodayPageProps {
   tasks: Task[];
   completions: Set<string>;
   onToggleTask: (taskId: string) => void;
+  onAddTask?: () => void;
 }
 
-export function TodayPage({ tasks, completions, onToggleTask }: TodayPageProps) {
+export function TodayPage({ tasks, completions, onToggleTask, onAddTask }: TodayPageProps) {
   const groupedTasks = groupTasksByCategory(tasks);
   const todaysTaskIds = new Set(tasks.map(t => t.id));
   
@@ -57,9 +58,23 @@ export function TodayPage({ tasks, completions, onToggleTask }: TodayPageProps) 
           >
             Vale
           </h1>
-          <p className="text-purple-300/60 text-sm">
-            {formatDate(new Date())}
-          </p>
+          <div className="flex items-center justify-center gap-3">
+            <p className="text-purple-300/60 text-sm">
+              {formatDate(new Date())}
+            </p>
+            {onAddTask && (
+              <button
+                onClick={onAddTask}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                style={{
+                  background: 'linear-gradient(135deg, #b794f6 0%, #ff6b9d 100%)',
+                  boxShadow: '0 0 15px rgba(183, 148, 246, 0.3)',
+                }}
+              >
+                <span className="text-lg text-gray-900 font-bold">+</span>
+              </button>
+            )}
+          </div>
         </header>
 
         {/* Bloom indicator */}
