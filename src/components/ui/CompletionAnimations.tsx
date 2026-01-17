@@ -431,12 +431,19 @@ export function CompletionAnimation({
         const updated = prev.map(p => {
           // Special animation for cat - fade in, hold, fade out
           if (p.type === 'cat') {
-            const newOpacity = p.opacity < 1 ? p.opacity + 0.08 : p.opacity - 0.015;
-            const newScale = (p.scale || 0.5) < 1.2 ? (p.scale || 0.5) + 0.03 : (p.scale || 1);
+            // Fade in phase
+            if ((p.scale || 0.5) < 1.1) {
+              return {
+                ...p,
+                opacity: Math.min(1, p.opacity + 0.08),
+                scale: (p.scale || 0.5) + 0.02,
+              };
+            }
+            // Fade out phase
             return {
               ...p,
-              opacity: Math.min(1, newOpacity),
-              scale: newScale,
+              opacity: p.opacity - 0.03,
+              scale: (p.scale || 1) + 0.005,
             };
           }
           
@@ -471,11 +478,7 @@ export function CompletionAnimation({
             rotation: p.rotation + (p.type === 'glitter' ? 8 : 3),
             opacity: p.opacity - 0.018,
           };
-        }).filter(p => {
-          // Cat fades out after reaching full opacity
-          if (p.type === 'cat') return p.opacity > 0 && (p.scale || 0) < 1.5;
-          return p.opacity > 0;
-        });
+        }).filter(p => p.opacity > 0);
 
         if (updated.length === 0) {
           setIsAnimating(false);
