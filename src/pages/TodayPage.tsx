@@ -45,7 +45,7 @@ export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditT
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-purple-900/20 pointer-events-none" />
 
       {/* Main content - scrollable */}
-      <div className="relative z-10 p-6 pb-48">
+      <div className="relative z-10 p-6" style={{ paddingBottom: '200px' }}>
         {/* Header */}
         <header className="text-center mb-8 pt-4">
           <h1
