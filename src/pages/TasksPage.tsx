@@ -3,7 +3,7 @@ import { StarField } from '../components/ui/StarField';
 import { CategoryHeader } from '../components/ui/CategoryHeader';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { categoryConfig } from '../data/categories';
-import { categoryOrder } from '../utils/taskUtils';
+import { categoryOrder, groupTasksByCategory } from '../utils/taskUtils';
 import type { Task } from '../utils/taskUtils';
 
 interface TasksPageProps {
@@ -18,11 +18,7 @@ interface TasksPageProps {
 export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TasksPageProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
-  const groupedTasks = tasks.reduce((acc, task) => {
-    if (!acc[task.category]) acc[task.category] = [];
-    acc[task.category].push(task);
-    return acc;
-  }, {} as Record<string, Task[]>);
+  const groupedTasks = groupTasksByCategory(tasks);
 
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
 
