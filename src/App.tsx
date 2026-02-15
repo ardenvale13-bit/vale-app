@@ -6,6 +6,7 @@ import { TasksPage } from './pages/TasksPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AddTaskModal } from './components/tasks/AddTaskModal';
 import { LoadingScreen } from './components/ui/LoadingScreen';
+import { EntryScreen } from './components/ui/EntryScreen';
 import { CompletionAnimation, useCompletionAnimation } from './components/ui/CompletionAnimations';
 import { 
   fetchTasks, 
@@ -23,6 +24,7 @@ import {
 import type { Task } from './utils/taskUtils';
 
 function App() {
+  const [entryDismissed, setEntryDismissed] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('today');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completions, setCompletions] = useState<Set<string>>(new Set());
@@ -158,7 +160,7 @@ function App() {
   const todaysTasks = getTodaysTasks(tasks);
 
   // Error state (show after loading screen)
-  if (error && !showLoadingScreen) {
+  if (error && !showLoadingScreen && entryDismissed) {
     return (
       <div 
         className="min-h-screen flex items-center justify-center p-6"
@@ -182,15 +184,22 @@ function App() {
 
   return (
     <>
-      {/* Ethereal loading screen */}
-      <LoadingScreen 
-        isLoading={loading} 
-        onLoadComplete={() => setShowLoadingScreen(false)}
-        minDisplayTime={1400}
-      />
+      {/* Galaxy entry screen - shows first */}
+      {!entryDismissed && (
+        <EntryScreen onEnter={() => setEntryDismissed(true)} />
+      )}
+
+      {/* Ethereal loading screen - after entry dismissed */}
+      {entryDismissed && (
+        <LoadingScreen 
+          isLoading={loading} 
+          onLoadComplete={() => setShowLoadingScreen(false)}
+          minDisplayTime={1400}
+        />
+      )}
       
       {/* Main app content */}
-      {!showLoadingScreen && (
+      {entryDismissed && !showLoadingScreen && (
         <div
           style={{
             background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',

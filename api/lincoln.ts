@@ -157,9 +157,16 @@ export default async function handler(req: Request): Promise<Response> {
           });
         }
 
+        // Use NZ timezone for date to avoid UTC boundary issues
+        const nzNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Pacific/Auckland' }));
+        const nzYear = nzNow.getFullYear();
+        const nzMonth = String(nzNow.getMonth() + 1).padStart(2, '0');
+        const nzDay = String(nzNow.getDate()).padStart(2, '0');
+        const nzDateStr = `${nzYear}-${nzMonth}-${nzDay}`;
+
         await supabase.from('completions').insert({
           task_id: task.id,
-          scheduled_for: new Date().toISOString().split('T')[0],
+          scheduled_for: nzDateStr,
         });
 
         return new Response(JSON.stringify({ success: true, message: 'Task completed' }), {

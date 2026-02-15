@@ -37,7 +37,7 @@ export const categoryConfig: Record<TaskCategory, CategoryConfig> = {
   },
   rotation: {
     id: 'rotation',
-    label: 'Rotation',
+    label: 'Rotations',
     color: '#00fff7',
     glowColor: 'rgba(0, 255, 247, 0.4)',
     borderColor: 'rgba(0, 255, 247, 0.3)',
@@ -77,7 +77,7 @@ export const categoryConfig: Record<TaskCategory, CategoryConfig> = {
   },
   one_off: {
     id: 'one_off',
-    label: 'Tasks',
+    label: 'One-Off',
     color: '#a0aec0',
     glowColor: 'rgba(160, 174, 192, 0.4)',
     borderColor: 'rgba(160, 174, 192, 0.3)',

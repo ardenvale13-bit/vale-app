@@ -110,19 +110,20 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* Modal */}
+      {/* Modal - Centered on screen */}
       <div 
-        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-6"
+        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6"
         style={{
           background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
           border: '1px solid rgba(183, 148, 246, 0.3)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(154, 123, 255, 0.15)',
         }}
       >
         {/* Header */}
@@ -138,7 +139,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
           </h2>
           <button
             onClick={onClose}
-            className="text-purple-300/60 hover:text-purple-200 text-2xl"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-purple-300/60 hover:text-purple-200 hover:bg-white/10 transition-all text-2xl"
           >
             ×
           </button>
@@ -154,7 +155,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs doing?"
-              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400 placeholder:text-purple-300/30"
+              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-purple-200 text-base focus:outline-none focus:border-purple-400 placeholder:text-purple-300/30"
             />
           </div>
 
@@ -166,14 +167,14 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Any extra details..."
               rows={2}
-              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400 placeholder:text-purple-300/30 resize-none"
+              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-purple-200 text-base focus:outline-none focus:border-purple-400 placeholder:text-purple-300/30 resize-none"
             />
           </div>
 
           {/* Category - only show if not editing a Lincoln task */}
           {(!isEditing || editingTask?.source !== 'lincoln') && (
             <div>
-              <label className="text-xs text-purple-300/50 block mb-1">Category</label>
+              <label className="text-xs text-purple-300/50 block mb-2">Category</label>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(categoryConfig)
                   .filter(([key]) => key !== 'lincoln_demands')
@@ -181,7 +182,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
                     <button
                       key={key}
                       onClick={() => setCategory(key as TaskCategory)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all ${
+                      className={`px-3 py-3 rounded-lg text-sm font-medium text-left flex items-center gap-2 transition-all ${
                         category === key
                           ? 'border-2'
                           : 'border border-transparent bg-gray-800/30'
@@ -192,7 +193,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
                         color: category === key ? config.color : 'rgba(183, 148, 246, 0.6)',
                       }}
                     >
-                      <span>{config.icon}</span>
+                      <span className="text-base">{config.icon}</span>
                       <span>{config.label}</span>
                     </button>
                   ))}
@@ -202,13 +203,13 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
 
           {/* Frequency */}
           <div>
-            <label className="text-xs text-purple-300/50 block mb-1">How often?</label>
+            <label className="text-xs text-purple-300/50 block mb-2">How often?</label>
             <div className="flex gap-2">
               {frequencyOptions.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => setFrequencyType(opt.value as typeof frequencyType)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  className={`flex-1 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
                     frequencyType === opt.value
                       ? 'bg-purple-500/30 border border-purple-400/50 text-purple-200'
                       : 'bg-gray-800/30 border border-transparent text-purple-300/60'
@@ -223,13 +224,13 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
           {/* Day selector (only for specific_days) */}
           {frequencyType === 'specific_days' && (
             <div>
-              <label className="text-xs text-purple-300/50 block mb-1">Which days?</label>
+              <label className="text-xs text-purple-300/50 block mb-2">Which days?</label>
               <div className="flex gap-1">
                 {dayOptions.map(day => (
                   <button
                     key={day.value}
                     onClick={() => toggleDay(day.value)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${
                       selectedDays.includes(day.value)
                         ? 'bg-purple-500/40 border border-purple-400/50 text-purple-200'
                         : 'bg-gray-800/30 border border-transparent text-purple-300/60'
@@ -244,12 +245,12 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
 
           {/* Reminder time */}
           <div>
-            <label className="text-xs text-purple-300/50 block mb-1">Reminder time (optional)</label>
+            <label className="text-xs text-purple-300/50 block mb-2">Reminder time (optional)</label>
             <input
               type="time"
               value={reminderTime}
               onChange={(e) => setReminderTime(e.target.value)}
-              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400"
+              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-purple-200 text-base focus:outline-none focus:border-purple-400"
             />
           </div>
         </div>
@@ -258,10 +259,10 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
         <button
           onClick={handleSubmit}
           disabled={!title.trim() || saving}
-          className={`w-full mt-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+          className={`w-full mt-6 py-4 rounded-xl font-semibold text-base transition-all duration-300 ${
             !title.trim() || saving
               ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-              : 'bg-purple-600/40 border border-purple-500/50 text-purple-200 hover:bg-purple-600/50'
+              : 'bg-purple-600/40 border border-purple-500/50 text-purple-200 hover:bg-purple-600/50 active:scale-[0.98]'
           }`}
         >
           {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Task')}

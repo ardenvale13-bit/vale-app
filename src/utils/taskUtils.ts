@@ -98,16 +98,38 @@ export function getTodaysTasks(tasks: Task[]): Task[] {
 }
 
 /**
- * Group tasks by category
+ * Parse earliest reminder time from a task for sorting
+ * Returns minutes since midnight, or 9999 if no reminder time
+ */
+function getEarliestReminderMinutes(task: Task): number {
+  if (!task.reminderTimes || task.reminderTimes.length === 0) return 9999;
+  
+  const minutes = task.reminderTimes.map(time => {
+    const [h, m] = time.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  });
+  
+  return Math.min(...minutes);
+}
+
+/**
+ * Group tasks by category, sorted by earliest reminder time within each group
  */
 export function groupTasksByCategory(tasks: Task[]): Record<string, Task[]> {
-  return tasks.reduce((acc, task) => {
+  const grouped = tasks.reduce((acc, task) => {
     if (!acc[task.category]) {
       acc[task.category] = [];
     }
     acc[task.category].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
+
+  // Sort tasks within each category by earliest reminder time
+  for (const category of Object.keys(grouped)) {
+    grouped[category].sort((a, b) => getEarliestReminderMinutes(a) - getEarliestReminderMinutes(b));
+  }
+
+  return grouped;
 }
 
 /**
@@ -161,10 +183,23 @@ export function formatDate(date: Date): string {
 }
 
 /**
- * Get today's date as YYYY-MM-DD string
+ * Get a date as YYYY-MM-DD string in NZ timezone
+ */
+export function getLocalDateString(date?: Date): string {
+  const d = date || new Date();
+  // Force NZ timezone to avoid UTC date boundary issues
+  const nzDate = new Date(d.toLocaleString('en-US', { timeZone: 'Pacific/Auckland' }));
+  const year = nzDate.getFullYear();
+  const month = String(nzDate.getMonth() + 1).padStart(2, '0');
+  const day = String(nzDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get today's date as YYYY-MM-DD string in NZ timezone
  */
 export function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0];
+  return getLocalDateString(new Date());
 }
 
 /**

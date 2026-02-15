@@ -128,10 +128,21 @@ export function SettingsPage() {
 
       {/* Main content */}
       <div className="relative z-10 min-h-screen p-6 pb-32">
-        {/* Header */}
-        <header className="mb-8 pt-4">
+        {/* Section header banner - reuse tracker settings gear */}
+        <div className="flex justify-center pt-2 pb-4">
+          <img 
+            src="/nav-settings.png" 
+            alt="Settings" 
+            style={{ 
+              width: 64, 
+              height: 'auto',
+              filter: 'drop-shadow(0 2px 12px rgba(154, 123, 255, 0.4))',
+            }} 
+          />
+        </div>
+        <header className="mb-6 text-center">
           <h1
-            className="text-3xl font-bold tracking-wide"
+            className="text-2xl font-bold tracking-wide"
             style={{
               fontFamily: 'Cormorant Garamond, serif',
               color: '#f0f4ff',

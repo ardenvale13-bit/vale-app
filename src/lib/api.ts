@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { DbTask, DbCompletion } from './supabase';
+import { getLocalDateString } from '../utils/taskUtils';
 
 // Get all active (non-archived) tasks
 export async function fetchTasks(): Promise<DbTask[]> {
@@ -19,7 +20,7 @@ export async function fetchTasks(): Promise<DbTask[]> {
 
 // Get completions for a specific date
 export async function fetchCompletionsForDate(date: Date): Promise<DbCompletion[]> {
-  const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const dateStr = getLocalDateString(date); // YYYY-MM-DD in NZ timezone
 
   const { data, error } = await supabase
     .from('completions')
@@ -36,7 +37,7 @@ export async function fetchCompletionsForDate(date: Date): Promise<DbCompletion[
 
 // Mark a task as complete for today
 export async function completeTask(taskId: string, scheduledFor: Date): Promise<DbCompletion> {
-  const dateStr = scheduledFor.toISOString().split('T')[0];
+  const dateStr = getLocalDateString(scheduledFor);
 
   const { data, error } = await supabase
     .from('completions')
@@ -57,7 +58,7 @@ export async function completeTask(taskId: string, scheduledFor: Date): Promise<
 
 // Uncomplete a task (delete the completion record)
 export async function uncompleteTask(taskId: string, scheduledFor: Date): Promise<void> {
-  const dateStr = scheduledFor.toISOString().split('T')[0];
+  const dateStr = getLocalDateString(scheduledFor);
 
   const { error } = await supabase
     .from('completions')

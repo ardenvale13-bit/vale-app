@@ -122,18 +122,6 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
 
           {/* Task content */}
           <div className="flex-1 min-w-0">
-            {/* Category label - ONLY for Lincoln's tasks */}
-            {isLincoln && (
-              <div
-                className="text-xs uppercase tracking-wider mb-1 flex items-center gap-1"
-                style={{ color: `${config.color}99` }}
-              >
-                <span>{config.icon}</span>
-                <span>{config.label}</span>
-                <span>{config.icon}</span>
-              </div>
-            )}
-
             {/* Task title */}
             <div
               className={`font-medium transition-all duration-300 ${
@@ -171,7 +159,7 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
         </div>
       </div>
 
-      {/* Action Menu */}
+      {/* Action Menu - Larger touch targets */}
       {showMenu && (
         <>
           {/* Backdrop */}
@@ -180,27 +168,42 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
             onClick={() => setShowMenu(false)}
           />
           
-          {/* Menu */}
+          {/* Menu - Centered and larger */}
           <div 
-            className="absolute right-2 top-full mt-1 z-50 rounded-lg overflow-hidden shadow-xl"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 rounded-2xl overflow-hidden shadow-2xl min-w-[200px]"
             style={{
               background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
               border: '1px solid rgba(183, 148, 246, 0.3)',
             }}
           >
+            {/* Task title preview */}
+            <div className="px-5 py-4 border-b border-purple-500/20">
+              <p className="text-purple-300/70 text-xs mb-1">Task</p>
+              <p className="text-purple-200 text-sm font-medium truncate">{task.title}</p>
+            </div>
+            
+            {/* Action buttons - much larger */}
             <button
               onClick={handleEdit}
-              className="w-full px-4 py-3 text-left text-sm text-purple-200 hover:bg-purple-500/20 transition-colors flex items-center gap-2"
+              className="w-full px-5 py-5 text-left text-base text-purple-200 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors flex items-center gap-4"
             >
-              <span>✏️</span>
-              <span>Edit</span>
+              <span className="text-xl">✏️</span>
+              <span>Edit Task</span>
             </button>
             <button
               onClick={handleDelete}
-              className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-2"
+              className="w-full px-5 py-5 text-left text-base text-red-400 hover:bg-red-500/20 active:bg-red-500/30 transition-colors flex items-center gap-4 border-t border-purple-500/10"
             >
-              <span>🗑️</span>
-              <span>Delete</span>
+              <span className="text-xl">🗑️</span>
+              <span>Delete Task</span>
+            </button>
+            
+            {/* Cancel button */}
+            <button
+              onClick={() => setShowMenu(false)}
+              className="w-full px-5 py-4 text-center text-sm text-purple-300/60 hover:bg-white/5 active:bg-white/10 transition-colors border-t border-purple-500/20"
+            >
+              Cancel
             </button>
           </div>
         </>

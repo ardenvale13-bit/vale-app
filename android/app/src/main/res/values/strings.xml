@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vale Tasks</string>
+    <string name="title_activity_main">Vale Tasks</string>
+    <string name="package_name">com.vale.tasks</string>
+    <string name="custom_url_scheme">com.vale.tasks</string>
+</resources>

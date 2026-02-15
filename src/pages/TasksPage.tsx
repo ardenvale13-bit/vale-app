@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import { StarField } from '../components/ui/StarField';
+import { CategoryHeader } from '../components/ui/CategoryHeader';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { categoryConfig } from '../data/categories';
 import { categoryOrder } from '../utils/taskUtils';
@@ -15,21 +16,27 @@ interface TasksPageProps {
 }
 
 export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TasksPageProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
-  // Filter tasks by category
-  const filteredTasks = selectedCategory === 'all' 
-    ? tasks 
-    : tasks.filter(t => t.category === selectedCategory);
-  
-  // Group by category for display
-  const groupedTasks = filteredTasks.reduce((acc, task) => {
+  const groupedTasks = tasks.reduce((acc, task) => {
     if (!acc[task.category]) acc[task.category] = [];
     acc[task.category].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
 
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
+
+  const toggleCategoryExpansion = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   return (
     <div 
@@ -39,80 +46,44 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditT
         overflowX: 'hidden',
       }}
     >
-      {/* Subtle stars */}
       <StarField count={30} intensity={0.3} />
 
-      {/* Main content - scrollable */}
-      <div className="relative z-10 p-6" style={{ paddingBottom: '200px' }}>
-        {/* Header */}
-        <header className="mb-6 pt-4">
-          <div className="flex items-center justify-between">
-            <h1
-              className="text-3xl font-bold tracking-wide"
-              style={{
-                fontFamily: 'Cormorant Garamond, serif',
-                color: '#f0f4ff',
-              }}
-            >
-              All Tasks
-            </h1>
-            
-            {/* Add button */}
+      <div className="relative z-10" style={{ paddingBottom: '100px' }}>
+        {/* Section header banner */}
+        <div className="flex justify-center pt-2 pb-2">
+          <img 
+            src="/header-tasks.png" 
+            alt="Tasks" 
+            style={{ 
+              maxWidth: 260, 
+              height: 'auto',
+              filter: 'drop-shadow(0 2px 12px rgba(154, 123, 255, 0.3))',
+            }} 
+          />
+        </div>
+
+        {/* Controls bar - just task count and add button */}
+        <div className="px-5 pb-4">
+          <div className="flex items-center justify-between max-w-lg mx-auto">
+            <p className="text-purple-300/50 text-sm">
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+            </p>
             <button
               onClick={onAddTask}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
               style={{
-                background: 'linear-gradient(135deg, #b794f6 0%, #ff6b9d 100%)',
-                boxShadow: '0 0 20px rgba(183, 148, 246, 0.4)',
+                background: 'linear-gradient(135deg, rgba(154,123,255,0.4), rgba(109,240,255,0.2))',
+                border: '1px solid rgba(154,123,255,0.3)',
+                boxShadow: '0 0 15px rgba(154, 123, 255, 0.2)',
               }}
             >
-              <span className="text-xl text-gray-900 font-bold">+</span>
+              <span className="text-lg text-white font-bold">+</span>
             </button>
           </div>
-          
-          {/* Category filter pills */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ${
-                selectedCategory === 'all' 
-                  ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50' 
-                  : 'bg-gray-800/50 text-purple-300/60 border border-transparent'
-              }`}
-            >
-              All ({tasks.length})
-            </button>
-            {categoryOrder.map(cat => {
-              const config = categoryConfig[cat as keyof typeof categoryConfig];
-              const count = tasks.filter(t => t.category === cat).length;
-              if (count === 0) return null;
-              
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 flex items-center gap-1 ${
-                    selectedCategory === cat 
-                      ? 'border' 
-                      : 'bg-gray-800/50 border border-transparent'
-                  }`}
-                  style={{
-                    backgroundColor: selectedCategory === cat ? `${config.color}20` : undefined,
-                    borderColor: selectedCategory === cat ? `${config.color}50` : undefined,
-                    color: selectedCategory === cat ? config.color : 'rgba(183, 148, 246, 0.6)',
-                  }}
-                >
-                  <span>{config.icon}</span>
-                  <span>{config.label}</span>
-                  <span className="opacity-60">({count})</span>
-                </button>
-              );
-            })}
-          </div>
-        </header>
+        </div>
 
-        {/* Task list */}
-        <div className="max-w-lg mx-auto space-y-6">
+        {/* Task list - collapsible categories only */}
+        <div className="max-w-lg mx-auto px-4 space-y-4">
           {orderedCategories.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-purple-300/60 text-lg">No tasks yet</p>
@@ -122,30 +93,73 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditT
             orderedCategories.map((category) => {
               const categoryTasks = groupedTasks[category];
               const config = categoryConfig[category as keyof typeof categoryConfig];
+              const completedCount = categoryTasks.filter(t => completions.has(t.id)).length;
+              const isExpanded = expandedCategories.has(category);
 
               return (
-                <div key={category} className="space-y-3">
-                  {/* Category header */}
-                  <div 
-                    className="text-sm uppercase tracking-wider flex items-center gap-2 px-1"
-                    style={{ color: `${config.color}99` }}
+                <div 
+                  key={category} 
+                  className="rounded-2xl overflow-hidden"
+                  style={{
+                    background: 'rgba(20, 20, 35, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  {/* Collapsible category header - tap to expand */}
+                  <button
+                    onClick={() => toggleCategoryExpansion(category)}
+                    className="w-full px-4 py-3 flex items-center justify-between transition-all duration-200 active:bg-white/5"
+                    style={{
+                      borderBottom: isExpanded ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+                    }}
                   >
-                    <span>{config.icon}</span>
-                    <span>{config.label}</span>
-                    <span className="opacity-50">({categoryTasks.length})</span>
-                  </div>
+                    <div className="flex items-center gap-3">
+                      {/* Chevron indicator */}
+                      <svg 
+                        className="w-4 h-4 transition-transform duration-200"
+                        style={{ 
+                          color: config.color,
+                          transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        }}
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                      
+                      {/* Gradient text header */}
+                      <CategoryHeader label={config.label} size="sm" />
+                    </div>
+                    
+                    <span 
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{ 
+                        background: `${config.color}15`,
+                        color: `${config.color}99`,
+                      }}
+                    >
+                      {completedCount}/{categoryTasks.length}
+                    </span>
+                  </button>
 
-                  {/* Tasks */}
-                  {categoryTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      isCompleted={completions.has(task.id)}
-                      onToggle={onToggleTask}
-                      onEdit={onEditTask}
-                      onDelete={onDeleteTask}
-                    />
-                  ))}
+                  {/* Tasks - only shown when expanded */}
+                  {isExpanded && (
+                    <div className="p-2 space-y-2">
+                      {categoryTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          isCompleted={completions.has(task.id)}
+                          onToggle={onToggleTask}
+                          onEdit={onEditTask}
+                          onDelete={onDeleteTask}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })
