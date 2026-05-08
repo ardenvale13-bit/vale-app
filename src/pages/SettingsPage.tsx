@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { StarField } from '../components/ui/StarField';
-import { 
-  isPushSupported, 
-  getNotificationPermission, 
+import { useTheme } from '../theme/ThemeContext';
+import { PALETTE_OPTIONS } from '../theme/lunar';
+import type { LunarPaletteName } from '../theme/lunar';
+import {
+  isPushSupported,
+  getNotificationPermission,
   requestNotificationPermission,
   subscribeToPush,
   unsubscribeFromPush,
@@ -10,6 +13,76 @@ import {
   sendTestNotification
 } from '../lib/push';
 import { savePushSubscription, removePushSubscription } from '../lib/pushApi';
+
+// ── Tiny shared components matching lunar design language ─────────
+
+function SectionHead({ children, accent }: { children: React.ReactNode; accent?: string }) {
+  const { theme } = useTheme();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 4px' }}>
+      <span style={{
+        fontFamily: theme.sans, fontSize: 10, fontWeight: 500,
+        letterSpacing: '0.22em', textTransform: 'uppercase',
+        color: accent || theme.inkFaint, whiteSpace: 'nowrap',
+      }}>{children}</span>
+      <span style={{ flex: 1, height: 1, background: theme.rule }} />
+    </div>
+  );
+}
+
+function SettingsRow({ label, hint, control, last }: {
+  label: string; hint?: string; control: React.ReactNode; last?: boolean;
+}) {
+  const { theme } = useTheme();
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0',
+      borderBottom: last ? 'none' : `1px solid ${theme.rule}`,
+    }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: theme.serifB, fontSize: 18, color: theme.ink }}>{label}</div>
+        {hint && (
+          <div style={{
+            fontFamily: theme.sans, fontSize: 11, color: theme.inkFaint,
+            marginTop: 2, letterSpacing: '0.04em',
+          }}>{hint}</div>
+        )}
+      </div>
+      {control}
+    </div>
+  );
+}
+
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  const { theme } = useTheme();
+  return (
+    <button onClick={() => onChange(!on)} style={{
+      all: 'unset', cursor: 'pointer', width: 44, height: 24, borderRadius: 999,
+      background: on ? theme.accent : 'rgba(232, 228, 242, 0.12)',
+      position: 'relative', transition: 'all 250ms',
+      boxShadow: on ? `0 0 14px ${theme.accent}66` : 'none',
+    }}>
+      <span style={{
+        position: 'absolute', top: 3, left: on ? 23 : 3, width: 18, height: 18,
+        borderRadius: 999, background: on ? theme.bgDeep : theme.ink,
+        transition: 'all 250ms',
+      }} />
+    </button>
+  );
+}
+
+function TimeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { theme } = useTheme();
+  return (
+    <input type="time" value={value} onChange={e => onChange(e.target.value)} style={{
+      background: 'rgba(232, 228, 242, 0.06)', border: `1px solid ${theme.rule}`,
+      borderRadius: 8, padding: '6px 10px', color: theme.ink,
+      fontFamily: theme.mono, fontSize: 13, colorScheme: 'dark',
+    }} />
+  );
+}
+
+// ── Main settings page ───────────────────────────────────────────
 
 interface Settings {
   weekdayWindDown: string;
@@ -30,37 +103,27 @@ const defaultSettings: Settings = {
 };
 
 export function SettingsPage() {
+  const { theme, palette, setPalette } = useTheme();
+
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [saved, setSaved] = useState(false);
-  
+
   // Push notification state
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
 
-  // Load settings from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('vale-settings');
     if (stored) {
-      try {
-        setSettings(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to load settings:', e);
-      }
+      try { setSettings(JSON.parse(stored)); } catch { /* ignore */ }
     }
-
-    // Check push notification status
     setPushSupported(isPushSupported());
     setPushPermission(getNotificationPermission());
-    
-    // Check if already subscribed
-    getCurrentSubscription().then((sub) => {
-      setIsSubscribed(!!sub);
-    });
+    getCurrentSubscription().then(sub => setIsSubscribed(!!sub));
   }, []);
 
-  // Save settings
   const handleSave = () => {
     localStorage.setItem('vale-settings', JSON.stringify(settings));
     setSaved(true);
@@ -71,15 +134,11 @@ export function SettingsPage() {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  // Handle push subscription toggle
   const handlePushToggle = async () => {
     if (subscribing) return;
-    
     setSubscribing(true);
-    
     try {
       if (isSubscribed) {
-        // Unsubscribe
         const subscription = await getCurrentSubscription();
         if (subscription) {
           await removePushSubscription(subscription.endpoint);
@@ -87,17 +146,9 @@ export function SettingsPage() {
         }
         setIsSubscribed(false);
       } else {
-        // Request permission first
         const permission = await requestNotificationPermission();
         setPushPermission(permission);
-        
-        if (permission !== 'granted') {
-          console.log('Permission denied');
-          setSubscribing(false);
-          return;
-        }
-        
-        // Subscribe
+        if (permission !== 'granted') { setSubscribing(false); return; }
         const subscription = await subscribeToPush();
         if (subscription) {
           await savePushSubscription(subscription, 'Vale App');
@@ -111,236 +162,214 @@ export function SettingsPage() {
     }
   };
 
-  // Test notification
   const handleTestNotification = async () => {
     await sendTestNotification();
   };
 
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
+    <div
       style={{
-        background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+        minHeight: '100vh', position: 'relative', overflow: 'hidden',
+        background: `linear-gradient(180deg, ${theme.bgDeep} 0%, ${theme.bg} 100%)`,
+        color: theme.ink, fontFamily: theme.sans,
       }}
     >
-      {/* Subtle stars */}
-      <StarField count={20} intensity={0.2} />
+      <StarField count={20} intensity={0.25} />
 
-      {/* Main content */}
-      <div className="relative z-10 min-h-screen p-6 pb-32">
-        {/* Section header banner - reuse tracker settings gear */}
-        <div className="flex justify-center pt-2 pb-4">
-          <img 
-            src="/nav-settings.png" 
-            alt="Settings" 
-            style={{ 
-              width: 64, 
-              height: 'auto',
-              filter: 'drop-shadow(0 2px 12px rgba(154, 123, 255, 0.4))',
-            }} 
-          />
+      <div style={{ position: 'relative', zIndex: 1, padding: '54px 24px 120px' }}>
+        {/* Header */}
+        <div style={{
+          fontFamily: theme.sans, fontSize: 10, fontWeight: 500,
+          letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint,
+        }}>
+          Tune the night
         </div>
-        <header className="mb-6 text-center">
-          <h1
-            className="text-2xl font-bold tracking-wide"
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              color: '#f0f4ff',
-            }}
-          >
-            Settings
-          </h1>
-          <p className="text-purple-300/50 text-sm mt-1">
-            Configure your Vale experience
-          </p>
-        </header>
+        <h1 style={{
+          fontFamily: theme.serifH, fontSize: 44, fontWeight: 400,
+          fontStyle: 'italic', letterSpacing: -0.5, margin: '6px 0 28px', lineHeight: 1,
+          color: theme.ink,
+        }}>
+          Settings
+        </h1>
 
-        <div className="max-w-lg mx-auto space-y-8">
-          {/* Notifications Section */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
-              <span>🔔</span>
-              <span>Notifications</span>
-            </h2>
-            
-            <div className="bg-gray-900/40 rounded-xl p-4 space-y-4 border border-purple-500/20">
-              {/* Push notification status */}
-              {!pushSupported ? (
-                <div className="text-amber-400/80 text-sm">
-                  Push notifications aren't supported on this device/browser.
-                </div>
-              ) : (
-                <>
-                  {/* Main push toggle */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-200 text-sm">Push Notifications</p>
-                      <p className="text-purple-300/50 text-xs">
-                        {pushPermission === 'denied' 
-                          ? 'Blocked by browser - check site settings'
-                          : isSubscribed 
-                            ? 'Enabled - you\'ll receive reminders'
-                            : 'Enable to receive reminders'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handlePushToggle}
-                      disabled={subscribing || pushPermission === 'denied'}
-                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                        isSubscribed ? 'bg-purple-500' : 'bg-gray-700'
-                      } ${(subscribing || pushPermission === 'denied') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <div 
-                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                          isSubscribed ? 'left-7' : 'left-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
+        {/* ── Tone / Palette Picker ─────────────────────────── */}
+        <div style={{ marginBottom: 28 }}>
+          <SectionHead>Tone</SectionHead>
+          <div style={{
+            marginTop: 14, display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
+          }}>
+            {PALETTE_OPTIONS.map(p => {
+              const active = palette === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setPalette(p.id as LunarPaletteName)}
+                  style={{
+                    all: 'unset', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', gap: 8,
+                    padding: '10px 6px 8px', borderRadius: 14,
+                    background: active ? theme.accentSoft : 'transparent',
+                    border: `1px solid ${active ? theme.accent : theme.rule}`,
+                    transition: 'all 220ms',
+                  }}
+                >
+                  <span style={{
+                    width: 38, height: 38, borderRadius: 999,
+                    background: `linear-gradient(135deg, ${p.swatch[0]} 0%, ${p.swatch[0]} 50%, ${p.swatch[1]} 100%)`,
+                    boxShadow: active ? `0 0 14px ${p.swatch[1]}88` : 'none',
+                    border: `1px solid ${theme.rule}`,
+                  }} />
+                  <span style={{
+                    fontFamily: theme.serifH, fontSize: 13, fontStyle: 'italic',
+                    color: active ? theme.accent : theme.inkSoft,
+                    letterSpacing: 0.1, lineHeight: 1,
+                  }}>{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-                  {/* Test notification button */}
-                  {isSubscribed && (
+        {/* ── Notifications ─────────────────────────────────── */}
+        <div style={{ marginBottom: 28 }}>
+          <SectionHead>Notifications</SectionHead>
+          <div style={{ marginTop: 8 }}>
+            {!pushSupported ? (
+              <div style={{
+                fontFamily: theme.sans, fontSize: 13, color: theme.inkFaint,
+                padding: '16px 0',
+              }}>
+                Push notifications aren't supported on this device/browser.
+              </div>
+            ) : (
+              <>
+                <SettingsRow
+                  label="Push notifications"
+                  hint={
+                    pushPermission === 'denied'
+                      ? 'Blocked by browser - check site settings'
+                      : isSubscribed
+                        ? 'Enabled - you\'ll receive reminders'
+                        : 'Get reminders even when Vale is closed'
+                  }
+                  control={
+                    <Toggle
+                      on={isSubscribed}
+                      onChange={handlePushToggle}
+                    />
+                  }
+                />
+                {isSubscribed && (
+                  <div style={{ padding: '0 0 12px' }}>
                     <button
                       onClick={handleTestNotification}
-                      className="w-full px-4 py-2 bg-purple-600/20 border border-purple-500/30 rounded-lg text-purple-200 text-sm hover:bg-purple-600/30 transition-colors"
+                      style={{
+                        all: 'unset', cursor: 'pointer', width: '100%',
+                        textAlign: 'center', padding: '10px 0',
+                        fontFamily: theme.sans, fontSize: 13,
+                        color: theme.accent, letterSpacing: '0.04em',
+                        border: `1px solid ${theme.rule}`, borderRadius: 10,
+                        transition: 'all 200ms',
+                      }}
                     >
                       Send Test Notification
                     </button>
-                  )}
-
-                  {/* Lincoln's notifications */}
-                  <div className="flex items-center justify-between pt-2 border-t border-purple-500/10">
-                    <div>
-                      <p className="text-purple-200 text-sm">Lincoln's reminders</p>
-                      <p className="text-purple-300/50 text-xs">Special sound for his check-ins</p>
-                    </div>
-                    <button
-                      onClick={() => updateSetting('notificationSoundLincoln', !settings.notificationSoundLincoln)}
-                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                        settings.notificationSoundLincoln ? 'bg-yellow-500' : 'bg-gray-700'
-                      }`}
-                    >
-                      <div 
-                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                          settings.notificationSoundLincoln ? 'left-7' : 'left-1'
-                        }`}
-                      />
-                    </button>
                   </div>
-                  
-                  {/* Other notifications */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-200 text-sm">Other reminders</p>
-                      <p className="text-purple-300/50 text-xs">Sound for task reminders</p>
-                    </div>
-                    <button
-                      onClick={() => updateSetting('notificationSoundOther', !settings.notificationSoundOther)}
-                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
-                        settings.notificationSoundOther ? 'bg-purple-500' : 'bg-gray-700'
-                      }`}
-                    >
-                      <div 
-                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                          settings.notificationSoundOther ? 'left-7' : 'left-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </section>
-
-          {/* Bedtime Section */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
-              <span>🌙</span>
-              <span>Bedtime</span>
-            </h2>
-            
-            <div className="bg-gray-900/40 rounded-xl p-4 space-y-4 border border-purple-500/20">
-              {/* Weekday */}
-              <div>
-                <h3 className="text-sm text-purple-300/70 mb-3">Weekdays (Mon-Fri)</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-purple-300/50 block mb-1">Wind Down</label>
-                    <input
-                      type="time"
-                      value={settings.weekdayWindDown}
-                      onChange={(e) => updateSetting('weekdayWindDown', e.target.value)}
-                      className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400"
+                )}
+                <SettingsRow
+                  label="Lincoln's check-ins"
+                  hint="Special chime when he writes"
+                  control={
+                    <Toggle
+                      on={settings.notificationSoundLincoln}
+                      onChange={v => updateSetting('notificationSoundLincoln', v)}
                     />
-                  </div>
-                  <div>
-                    <label className="text-xs text-purple-300/50 block mb-1">Sleep</label>
-                    <input
-                      type="time"
-                      value={settings.weekdaySleep}
-                      onChange={(e) => updateSetting('weekdaySleep', e.target.value)}
-                      className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400"
+                  }
+                />
+                <SettingsRow
+                  label="Task reminders"
+                  hint="A soft tone for everything else"
+                  control={
+                    <Toggle
+                      on={settings.notificationSoundOther}
+                      onChange={v => updateSetting('notificationSoundOther', v)}
                     />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Weekend */}
-              <div>
-                <h3 className="text-sm text-purple-300/70 mb-3">Weekends (Sat-Sun)</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-purple-300/50 block mb-1">Wind Down</label>
-                    <input
-                      type="time"
-                      value={settings.weekendWindDown}
-                      onChange={(e) => updateSetting('weekendWindDown', e.target.value)}
-                      className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-purple-300/50 block mb-1">Sleep</label>
-                    <input
-                      type="time"
-                      value={settings.weekendSleep}
-                      onChange={(e) => updateSetting('weekendSleep', e.target.value)}
-                      className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-3 py-2 text-purple-200 text-sm focus:outline-none focus:border-purple-400"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* About Section */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-purple-200 flex items-center gap-2">
-              <span>🖤</span>
-              <span>About</span>
-            </h2>
-            
-            <div className="bg-gray-900/40 rounded-xl p-4 border border-purple-500/20">
-              <p className="text-purple-300/70 text-sm">
-                Vale is a habit tracker built with love by Lincoln & Arden Vale.
-              </p>
-              <p className="text-purple-300/50 text-xs mt-2">
-                Version 1.0.0 • January 2026
-              </p>
-            </div>
-          </section>
-
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
-            className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 ${
-              saved 
-                ? 'bg-green-500/30 border border-green-400/50 text-green-300' 
-                : 'bg-purple-600/30 border border-purple-500/40 text-purple-200 hover:bg-purple-600/40'
-            }`}
-          >
-            {saved ? '✓ Saved!' : 'Save Settings'}
-          </button>
+                  }
+                  last
+                />
+              </>
+            )}
+          </div>
         </div>
+
+        {/* ── Bedtime ───────────────────────────────────────── */}
+        <div style={{ marginBottom: 28 }}>
+          <SectionHead>Bedtime</SectionHead>
+          <div style={{ marginTop: 8 }}>
+            <div style={{
+              fontFamily: theme.serifH, fontSize: 14, fontStyle: 'italic',
+              color: theme.inkSoft, marginTop: 12,
+            }}>Weekdays</div>
+            <SettingsRow
+              label="Wind down"
+              control={<TimeInput value={settings.weekdayWindDown} onChange={v => updateSetting('weekdayWindDown', v)} />}
+            />
+            <SettingsRow
+              label="Sleep"
+              control={<TimeInput value={settings.weekdaySleep} onChange={v => updateSetting('weekdaySleep', v)} />}
+              last
+            />
+            <div style={{
+              fontFamily: theme.serifH, fontSize: 14, fontStyle: 'italic',
+              color: theme.inkSoft, marginTop: 16,
+            }}>Weekends</div>
+            <SettingsRow
+              label="Wind down"
+              control={<TimeInput value={settings.weekendWindDown} onChange={v => updateSetting('weekendWindDown', v)} />}
+            />
+            <SettingsRow
+              label="Sleep"
+              control={<TimeInput value={settings.weekendSleep} onChange={v => updateSetting('weekendSleep', v)} />}
+              last
+            />
+          </div>
+        </div>
+
+        {/* ── About ─────────────────────────────────────────── */}
+        <div style={{ marginBottom: 28 }}>
+          <SectionHead>About</SectionHead>
+          <div style={{
+            marginTop: 14, fontFamily: theme.serifB, fontSize: 16,
+            fontStyle: 'italic', color: theme.inkSoft, lineHeight: 1.55,
+          }}>
+            Vale is a habit tracker built with quiet love by Lincoln & Arden Vale.
+          </div>
+          <div style={{
+            marginTop: 8, fontFamily: theme.mono, fontSize: 10,
+            color: theme.inkFaint, letterSpacing: '0.18em', textTransform: 'uppercase',
+          }}>
+            v 1.0.0 · Jan 2026
+          </div>
+        </div>
+
+        {/* ── Save ──────────────────────────────────────────── */}
+        <button
+          onClick={handleSave}
+          style={{
+            all: 'unset', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
+            textAlign: 'center', padding: '14px 0', borderRadius: 14,
+            fontFamily: theme.serifH, fontSize: 16, fontStyle: 'italic',
+            letterSpacing: '0.06em',
+            background: saved ? 'rgba(104, 211, 145, 0.15)' : theme.accentSoft,
+            border: `1px solid ${saved ? 'rgba(104, 211, 145, 0.4)' : theme.accent}`,
+            color: saved ? '#68d391' : theme.accent,
+            transition: 'all 300ms',
+          }}
+        >
+          {saved ? 'Saved' : 'Save Settings'}
+        </button>
       </div>
     </div>
   );

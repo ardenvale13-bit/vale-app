@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { categoryConfig, type TaskCategory } from '../../data/categories';
+import { useTheme } from '../../theme/ThemeContext';
 import { createTask, updateTask } from '../../lib/api';
 import type { Task } from '../../utils/taskUtils';
 
@@ -27,6 +28,7 @@ const dayOptions = [
 ];
 
 export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: TaskModalProps) {
+  const { theme } = useTheme();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TaskCategory>('daily_rituals');
@@ -37,7 +39,6 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
 
   const isEditing = !!editingTask;
 
-  // Populate form when editing
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
@@ -47,7 +48,6 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
       setSelectedDays(editingTask.frequency.days || []);
       setReminderTime(editingTask.reminderTimes?.[0] || '');
     } else {
-      // Reset form for new task
       setTitle('');
       setDescription('');
       setCategory('daily_rituals');
@@ -59,9 +59,7 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
-    
     setSaving(true);
-    
     try {
       const taskData = {
         title: title.trim(),
@@ -75,21 +73,15 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
       if (isEditing && editingTask) {
         await updateTask(editingTask.id, taskData);
       } else {
-        await createTask({
-          ...taskData,
-          source: 'user',
-          archived: false,
-        });
+        await createTask({ ...taskData, source: 'user', archived: false });
       }
-      
-      // Reset form
+
       setTitle('');
       setDescription('');
       setCategory('daily_rituals');
       setFrequencyType('daily');
       setSelectedDays([]);
       setReminderTime('');
-      
       onTaskSaved();
       onClose();
     } catch (err) {
@@ -100,100 +92,86 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
   };
 
   const toggleDay = (day: number) => {
-    setSelectedDays(prev => 
-      prev.includes(day) 
-        ? prev.filter(d => d !== day)
-        : [...prev, day]
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
   };
 
   if (!isOpen) return null;
 
+  // Shared input styles
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: `${theme.bg}cc`, border: `1px solid ${theme.rule}`,
+    borderRadius: 10, padding: '12px 16px',
+    color: theme.ink, fontFamily: theme.sans, fontSize: 16,
+    outline: 'none',
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal - Centered on screen */}
-      <div 
+      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
+
+      {/* Modal */}
+      <div
         className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6"
         style={{
-          background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
-          border: '1px solid rgba(183, 148, 246, 0.3)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(154, 123, 255, 0.15)',
+          background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.bgDeep} 100%)`,
+          border: `1px solid ${theme.accent}40`,
+          boxShadow: `0 25px 50px -12px rgba(0,0,0,0.5), 0 0 40px ${theme.accent}22`,
         }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 
-            className="text-2xl font-bold"
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              color: '#f0f4ff',
-            }}
-          >
+          <h2 style={{ fontFamily: theme.serifH, fontSize: 28, fontWeight: 400, fontStyle: 'italic', color: theme.ink }}>
             {isEditing ? 'Edit Task' : 'New Task'}
           </h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-purple-300/60 hover:text-purple-200 hover:bg-white/10 transition-all text-2xl"
+            style={{ all: 'unset', cursor: 'pointer', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, fontSize: 24, color: theme.inkFaint }}
           >
             ×
           </button>
         </div>
 
         {/* Form */}
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Title */}
           <div>
-            <label className="text-xs text-purple-300/50 block mb-1">Title *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="What needs doing?"
-              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-purple-200 text-base focus:outline-none focus:border-purple-400 placeholder:text-purple-300/30"
-            />
+            <label style={{ fontFamily: theme.sans, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint, display: 'block', marginBottom: 6 }}>Title *</label>
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs doing?" style={inputStyle} />
           </div>
 
           {/* Description */}
           <div>
-            <label className="text-xs text-purple-300/50 block mb-1">Description (optional)</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Any extra details..."
-              rows={2}
-              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-purple-200 text-base focus:outline-none focus:border-purple-400 placeholder:text-purple-300/30 resize-none"
-            />
+            <label style={{ fontFamily: theme.sans, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint, display: 'block', marginBottom: 6 }}>Description</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Any extra details..." rows={2} style={{ ...inputStyle, resize: 'none' }} />
           </div>
 
-          {/* Category - only show if not editing a Lincoln task */}
+          {/* Category */}
           {(!isEditing || editingTask?.source !== 'lincoln') && (
             <div>
-              <label className="text-xs text-purple-300/50 block mb-2">Category</label>
-              <div className="grid grid-cols-2 gap-2">
+              <label style={{ fontFamily: theme.sans, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint, display: 'block', marginBottom: 8 }}>Category</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {Object.entries(categoryConfig)
                   .filter(([key]) => key !== 'lincoln_demands')
                   .map(([key, config]) => (
                     <button
                       key={key}
                       onClick={() => setCategory(key as TaskCategory)}
-                      className={`px-3 py-3 rounded-lg text-sm font-medium text-left flex items-center gap-2 transition-all ${
-                        category === key
-                          ? 'border-2'
-                          : 'border border-transparent bg-gray-800/30'
-                      }`}
                       style={{
-                        borderColor: category === key ? config.color : 'transparent',
-                        backgroundColor: category === key ? `${config.color}15` : undefined,
-                        color: category === key ? config.color : 'rgba(183, 148, 246, 0.6)',
+                        all: 'unset', cursor: 'pointer',
+                        padding: '12px', borderRadius: 10,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        fontFamily: theme.sans, fontSize: 14,
+                        border: category === key ? `2px solid ${config.color}` : `1px solid ${theme.rule}`,
+                        background: category === key ? `${config.color}15` : 'transparent',
+                        color: category === key ? config.color : theme.inkSoft,
+                        transition: 'all 200ms',
                       }}
                     >
-                      <span className="text-base">{config.icon}</span>
+                      <span>{config.icon}</span>
                       <span>{config.label}</span>
                     </button>
                   ))}
@@ -203,17 +181,21 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
 
           {/* Frequency */}
           <div>
-            <label className="text-xs text-purple-300/50 block mb-2">How often?</label>
-            <div className="flex gap-2">
+            <label style={{ fontFamily: theme.sans, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint, display: 'block', marginBottom: 8 }}>How often?</label>
+            <div style={{ display: 'flex', gap: 8 }}>
               {frequencyOptions.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => setFrequencyType(opt.value as typeof frequencyType)}
-                  className={`flex-1 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
-                    frequencyType === opt.value
-                      ? 'bg-purple-500/30 border border-purple-400/50 text-purple-200'
-                      : 'bg-gray-800/30 border border-transparent text-purple-300/60'
-                  }`}
+                  style={{
+                    all: 'unset', cursor: 'pointer', flex: 1,
+                    padding: '12px 8px', borderRadius: 10, textAlign: 'center',
+                    fontFamily: theme.sans, fontSize: 13,
+                    border: frequencyType === opt.value ? `1px solid ${theme.accent}80` : `1px solid ${theme.rule}`,
+                    background: frequencyType === opt.value ? theme.accentSoft : 'transparent',
+                    color: frequencyType === opt.value ? theme.accent : theme.inkSoft,
+                    transition: 'all 200ms',
+                  }}
                 >
                   {opt.label}
                 </button>
@@ -221,20 +203,24 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
             </div>
           </div>
 
-          {/* Day selector (only for specific_days) */}
+          {/* Day selector */}
           {frequencyType === 'specific_days' && (
             <div>
-              <label className="text-xs text-purple-300/50 block mb-2">Which days?</label>
-              <div className="flex gap-1">
+              <label style={{ fontFamily: theme.sans, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint, display: 'block', marginBottom: 8 }}>Which days?</label>
+              <div style={{ display: 'flex', gap: 4 }}>
                 {dayOptions.map(day => (
                   <button
                     key={day.value}
                     onClick={() => toggleDay(day.value)}
-                    className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${
-                      selectedDays.includes(day.value)
-                        ? 'bg-purple-500/40 border border-purple-400/50 text-purple-200'
-                        : 'bg-gray-800/30 border border-transparent text-purple-300/60'
-                    }`}
+                    style={{
+                      all: 'unset', cursor: 'pointer', flex: 1,
+                      padding: '12px 0', borderRadius: 10, textAlign: 'center',
+                      fontFamily: theme.sans, fontSize: 13,
+                      border: selectedDays.includes(day.value) ? `1px solid ${theme.accent}80` : `1px solid ${theme.rule}`,
+                      background: selectedDays.includes(day.value) ? theme.accentSoft : 'transparent',
+                      color: selectedDays.includes(day.value) ? theme.accent : theme.inkSoft,
+                      transition: 'all 200ms',
+                    }}
                   >
                     {day.label}
                   </button>
@@ -245,25 +231,26 @@ export function AddTaskModal({ isOpen, onClose, onTaskSaved, editingTask }: Task
 
           {/* Reminder time */}
           <div>
-            <label className="text-xs text-purple-300/50 block mb-2">Reminder time (optional)</label>
-            <input
-              type="time"
-              value={reminderTime}
-              onChange={(e) => setReminderTime(e.target.value)}
-              className="w-full bg-gray-800/50 border border-purple-500/30 rounded-lg px-4 py-3 text-purple-200 text-base focus:outline-none focus:border-purple-400"
-            />
+            <label style={{ fontFamily: theme.sans, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint, display: 'block', marginBottom: 6 }}>Reminder time</label>
+            <input type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} />
           </div>
         </div>
 
-        {/* Submit button */}
+        {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={!title.trim() || saving}
-          className={`w-full mt-6 py-4 rounded-xl font-semibold text-base transition-all duration-300 ${
-            !title.trim() || saving
-              ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-              : 'bg-purple-600/40 border border-purple-500/50 text-purple-200 hover:bg-purple-600/50 active:scale-[0.98]'
-          }`}
+          style={{
+            all: 'unset', cursor: !title.trim() || saving ? 'not-allowed' : 'pointer',
+            display: 'block', width: '100%', boxSizing: 'border-box',
+            marginTop: 24, padding: '16px 0', borderRadius: 14, textAlign: 'center',
+            fontFamily: theme.serifH, fontSize: 18, fontStyle: 'italic',
+            background: !title.trim() || saving ? theme.rule : theme.accentSoft,
+            border: `1px solid ${!title.trim() || saving ? theme.rule : theme.accent}`,
+            color: !title.trim() || saving ? theme.inkFaint : theme.accent,
+            opacity: !title.trim() || saving ? 0.5 : 1,
+            transition: 'all 300ms',
+          }}
         >
           {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Task')}
         </button>

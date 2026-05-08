@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import { LUNAR_PAGE_BGS } from './theme/lunar';
 import { BottomNav, type NavTab } from './components/navigation/BottomNav';
 import { TodayPage } from './pages/TodayPage';
 import { TasksPage } from './pages/TasksPage';
@@ -8,22 +10,23 @@ import { AddTaskModal } from './components/tasks/AddTaskModal';
 import { LoadingScreen } from './components/ui/LoadingScreen';
 import { EntryScreen } from './components/ui/EntryScreen';
 import { CompletionAnimation, useCompletionAnimation } from './components/ui/CompletionAnimations';
-import { 
-  fetchTasks, 
-  fetchCompletionsForDate, 
-  completeTask, 
+import {
+  fetchTasks,
+  fetchCompletionsForDate,
+  completeTask,
   uncompleteTask,
   deleteTask,
-  subscribeToTasks 
+  subscribeToTasks
 } from './lib/api';
 import type { DbCompletion } from './lib/supabase';
-import { 
+import {
   dbTaskToLocal,
-  getTodaysTasks, 
+  getTodaysTasks,
 } from './utils/taskUtils';
 import type { Task } from './utils/taskUtils';
 
-function App() {
+function AppInner() {
+  const { theme, palette } = useTheme();
   const [entryDismissed, setEntryDismissed] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('today');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -162,18 +165,21 @@ function App() {
   // Error state (show after loading screen)
   if (error && !showLoadingScreen && entryDismissed) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center p-6"
-        style={{
-          background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
-        }}
+        style={{ background: LUNAR_PAGE_BGS[palette] }}
       >
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-400 mb-4">Oops</h1>
-          <p className="text-purple-300/60 mb-4">{error}</p>
-          <button 
+          <h1 style={{ fontFamily: theme.serifH, fontSize: 28, fontStyle: 'italic', color: '#f87171', marginBottom: 16 }}>Oops</h1>
+          <p style={{ color: theme.inkSoft, marginBottom: 16 }}>{error}</p>
+          <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
+            style={{
+              all: 'unset', cursor: 'pointer',
+              padding: '10px 20px', borderRadius: 10,
+              background: theme.accentSoft, border: `1px solid ${theme.accent}`,
+              color: theme.accent, fontFamily: theme.sans,
+            }}
           >
             Refresh
           </button>
@@ -202,8 +208,9 @@ function App() {
       {entryDismissed && !showLoadingScreen && (
         <div
           style={{
-            background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+            background: LUNAR_PAGE_BGS[palette],
             minHeight: '100vh',
+            transition: 'background 600ms',
           }}
         >
           {/* Page content based on active tab */}
@@ -258,6 +265,14 @@ function App() {
         </div>
       )}
     </>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }
 

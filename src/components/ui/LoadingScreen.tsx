@@ -1,7 +1,7 @@
-// LoadingScreen.tsx
-// Ethereal loading screen with floating stars and Vale branding
+// LoadingScreen.tsx — Ethereal loading with floating stars
 
 import { useEffect, useState } from 'react';
+import { useTheme } from '../../theme/ThemeContext';
 
 interface Star {
   id: number;
@@ -20,17 +20,17 @@ interface LoadingScreenProps {
   minDisplayTime?: number;
 }
 
-export function LoadingScreen({ 
-  isLoading, 
-  onLoadComplete, 
-  minDisplayTime = 1200 
+export function LoadingScreen({
+  isLoading,
+  onLoadComplete,
+  minDisplayTime = 1200
 }: LoadingScreenProps) {
+  const { theme } = useTheme();
   const [stars, setStars] = useState<Star[]>([]);
   const [visible, setVisible] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [showTime, setShowTime] = useState<number>(Date.now());
 
-  // Generate initial stars
   useEffect(() => {
     const newStars: Star[] = [];
     for (let i = 0; i < 50; i++) {
@@ -49,10 +49,8 @@ export function LoadingScreen({
     setShowTime(Date.now());
   }, []);
 
-  // Animate stars
   useEffect(() => {
     if (!visible) return;
-
     const interval = setInterval(() => {
       setStars(prev => prev.map(star => ({
         ...star,
@@ -62,24 +60,17 @@ export function LoadingScreen({
         ...(star.y < -3 ? { y: 103, x: Math.random() * 100 } : {}),
       })));
     }, 50);
-
     return () => clearInterval(interval);
   }, [visible]);
 
-  // Handle fade out when loading complete
   useEffect(() => {
     if (!isLoading) {
       const elapsed = Date.now() - showTime;
       const remaining = Math.max(0, minDisplayTime - elapsed);
-      
       const timer = setTimeout(() => {
         setFadeOut(true);
-        setTimeout(() => {
-          setVisible(false);
-          onLoadComplete?.();
-        }, 400);
+        setTimeout(() => { setVisible(false); onLoadComplete?.(); }, 400);
       }, remaining);
-
       return () => clearTimeout(timer);
     }
   }, [isLoading, minDisplayTime, onLoadComplete, showTime]);
@@ -87,28 +78,12 @@ export function LoadingScreen({
   if (!visible) return null;
 
   return (
-    <div 
-      className={`
-        fixed inset-0 z-[200] flex flex-col items-center justify-center
-        transition-opacity duration-400
-        ${fadeOut ? 'opacity-0' : 'opacity-100'}
-      `}
+    <div
+      className={`fixed inset-0 z-[200] flex flex-col items-center justify-center transition-opacity duration-400 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
       style={{
-        background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
+        background: `linear-gradient(135deg, ${theme.bgDeep} 0%, ${theme.bg} 50%, ${theme.bgGrad} 100%)`,
       }}
     >
-      {/* Ambient glow spots */}
-      <div 
-        className="absolute inset-0 opacity-30 pointer-events-none"
-        style={{
-          background: `
-            radial-gradient(ellipse at 25% 25%, rgba(6, 182, 212, 0.12) 0%, transparent 50%),
-            radial-gradient(ellipse at 75% 75%, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
-            radial-gradient(ellipse at 50% 50%, rgba(20, 184, 166, 0.08) 0%, transparent 65%)
-          `,
-        }}
-      />
-
       {/* Floating stars */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {stars.map(star => (
@@ -120,12 +95,9 @@ export function LoadingScreen({
               top: `${star.y}%`,
               width: star.size,
               height: star.size,
-              backgroundColor: 'white',
+              backgroundColor: '#E8E4F2',
               opacity: star.opacity * (0.5 + 0.5 * Math.sin(star.twinklePhase)),
-              boxShadow: `
-                0 0 ${star.size * 2}px rgba(255, 255, 255, 0.4),
-                0 0 ${star.size * 3}px rgba(6, 182, 212, 0.25)
-              `,
+              boxShadow: `0 0 ${star.size * 2}px rgba(232, 228, 242, 0.4)`,
             }}
           />
         ))}
@@ -133,29 +105,27 @@ export function LoadingScreen({
 
       {/* Main content */}
       <div className="relative z-10 flex flex-col items-center">
-        {/* Vale logo/text */}
-        <h1 
-          className="text-5xl tracking-[0.25em] mb-8"
+        <h1
+          className="tracking-[0.25em] mb-8"
           style={{
-            fontFamily: '"Cormorant Garamond", Georgia, serif',
-            fontWeight: 400,
-            background: 'linear-gradient(135deg, #e2e8f0 0%, #94a3b8 40%, #cbd5e1 70%, #94a3b8 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            textShadow: '0 0 40px rgba(148, 163, 184, 0.2)',
+            fontFamily: theme.serifH,
+            fontSize: 48, fontWeight: 400, fontStyle: 'italic',
+            color: theme.ink,
+            textShadow: `0 0 40px ${theme.accent}33`,
           }}
         >
-          VALE
+          Vale
         </h1>
 
-        {/* Subtle loading dots */}
+        {/* Loading dots */}
         <div className="flex items-center gap-2 mb-6">
           {[0, 1, 2].map(i => (
             <div
               key={i}
               className="w-1.5 h-1.5 rounded-full"
               style={{
-                backgroundColor: 'rgba(34, 211, 238, 0.6)',
+                backgroundColor: theme.accent,
+                opacity: 0.6,
                 animation: `pulse-dot 1.4s ease-in-out infinite`,
                 animationDelay: `${i * 0.2}s`,
               }}
@@ -163,29 +133,18 @@ export function LoadingScreen({
           ))}
         </div>
 
-        {/* Tagline */}
-        <p 
-          className="text-sm tracking-[0.2em] opacity-50"
-          style={{
-            fontFamily: '"Quicksand", system-ui, sans-serif',
-            color: '#94a3b8',
-          }}
-        >
+        <p style={{
+          fontFamily: theme.serifB, fontStyle: 'italic', fontSize: 13,
+          color: theme.inkFaint, letterSpacing: '0.1em',
+        }}>
           bloom where you're planted
         </p>
       </div>
 
-      {/* CSS animations */}
       <style>{`
         @keyframes pulse-dot {
-          0%, 80%, 100% {
-            transform: scale(1);
-            opacity: 0.4;
-          }
-          40% {
-            transform: scale(1.4);
-            opacity: 1;
-          }
+          0%, 80%, 100% { transform: scale(1); opacity: 0.4; }
+          40% { transform: scale(1.4); opacity: 1; }
         }
       `}</style>
     </div>

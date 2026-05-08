@@ -3,6 +3,7 @@ import { StarField } from '../components/ui/StarField';
 import { CategoryHeader } from '../components/ui/CategoryHeader';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { categoryConfig } from '../data/categories';
+import { useTheme } from '../theme/ThemeContext';
 import { categoryOrder, groupTasksByCategory } from '../utils/taskUtils';
 import type { Task } from '../utils/taskUtils';
 
@@ -16,30 +17,27 @@ interface TasksPageProps {
 }
 
 export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TasksPageProps) {
+  const { theme } = useTheme();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  
-  const groupedTasks = groupTasksByCategory(tasks);
 
+  const groupedTasks = groupTasksByCategory(tasks);
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
 
   const toggleCategoryExpansion = (category: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
       return next;
     });
   };
 
   return (
-    <div 
-      className="min-h-screen relative"
+    <div
       style={{
-        background: 'linear-gradient(135deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%)',
-        overflowX: 'hidden',
+        minHeight: '100vh', position: 'relative', overflowX: 'hidden',
+        background: `linear-gradient(180deg, ${theme.bgDeep} 0%, ${theme.bg} 100%)`,
+        color: theme.ink, fontFamily: theme.sans,
       }}
     >
       <StarField count={30} intensity={0.3} />
@@ -47,43 +45,43 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditT
       <div className="relative z-10" style={{ paddingBottom: '100px' }}>
         {/* Section header banner */}
         <div className="flex justify-center pt-2 pb-2">
-          <img 
-            src="/header-tasks.png" 
-            alt="Tasks" 
-            style={{ 
-              maxWidth: 260, 
+          <img
+            src="/header-tasks.png"
+            alt="Tasks"
+            style={{
+              maxWidth: 260,
               height: 'auto',
-              filter: 'drop-shadow(0 2px 12px rgba(154, 123, 255, 0.3))',
-            }} 
+              filter: `drop-shadow(0 2px 12px ${theme.accent}50)`,
+            }}
           />
         </div>
 
-        {/* Controls bar - just task count and add button */}
+        {/* Controls bar */}
         <div className="px-5 pb-4">
           <div className="flex items-center justify-between max-w-lg mx-auto">
-            <p className="text-purple-300/50 text-sm">
+            <p style={{ color: theme.inkFaint, fontSize: 14 }}>
               {tasks.length} task{tasks.length !== 1 ? 's' : ''}
             </p>
             <button
               onClick={onAddTask}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
               style={{
-                background: 'linear-gradient(135deg, rgba(154,123,255,0.4), rgba(109,240,255,0.2))',
-                border: '1px solid rgba(154,123,255,0.3)',
-                boxShadow: '0 0 15px rgba(154, 123, 255, 0.2)',
+                background: `linear-gradient(135deg, ${theme.accent}66, ${theme.accent}33)`,
+                border: `1px solid ${theme.accent}50`,
+                boxShadow: `0 0 15px ${theme.accent}33`,
               }}
             >
-              <span className="text-lg text-white font-bold">+</span>
+              <span style={{ fontSize: 18, color: theme.ink, fontWeight: 'bold' }}>+</span>
             </button>
           </div>
         </div>
 
-        {/* Task list - collapsible categories only */}
+        {/* Task list - collapsible categories */}
         <div className="max-w-lg mx-auto px-4 space-y-4">
           {orderedCategories.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-purple-300/60 text-lg">No tasks yet</p>
-              <p className="text-purple-300/40 text-sm mt-2">Tap + to add your first task</p>
+              <p style={{ color: theme.inkSoft, fontSize: 18 }}>No tasks yet</p>
+              <p style={{ color: theme.inkFaint, fontSize: 14, marginTop: 8 }}>Tap + to add your first task</p>
             </div>
           ) : (
             orderedCategories.map((category) => {
@@ -93,46 +91,38 @@ export function TasksPage({ tasks, completions, onToggleTask, onAddTask, onEditT
               const isExpanded = expandedCategories.has(category);
 
               return (
-                <div 
-                  key={category} 
+                <div
+                  key={category}
                   className="rounded-2xl overflow-hidden"
                   style={{
-                    background: 'rgba(20, 20, 35, 0.5)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    background: `${theme.bg}88`,
+                    border: `1px solid ${theme.rule}`,
                     backdropFilter: 'blur(8px)',
                   }}
                 >
-                  {/* Collapsible category header - tap to expand */}
+                  {/* Collapsible category header */}
                   <button
                     onClick={() => toggleCategoryExpansion(category)}
-                    className="w-full px-4 py-3 flex items-center justify-between transition-all duration-200 active:bg-white/5"
+                    className="w-full px-4 py-3 flex items-center justify-between transition-all duration-200"
                     style={{
-                      borderBottom: isExpanded ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      borderBottom: isExpanded ? `1px solid ${theme.rule}` : 'none',
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Chevron indicator */}
-                      <svg 
-                        className="w-4 h-4 transition-transform duration-200"
-                        style={{ 
-                          color: config.color,
-                          transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                        }}
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                      
-                      {/* Gradient text header */}
+                      {/* Chevron */}
+                      <span style={{
+                        color: config.color,
+                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 250ms', display: 'inline-block',
+                        fontSize: 16,
+                      }}>›</span>
                       <CategoryHeader label={config.label} size="sm" />
                     </div>
-                    
-                    <span 
+
+                    <span
                       className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ 
+                      style={{
                         background: `${config.color}15`,
                         color: `${config.color}99`,
                       }}

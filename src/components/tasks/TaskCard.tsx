@@ -1,5 +1,6 @@
 import { useState, useRef, type MouseEvent } from 'react';
 import { categoryConfig } from '../../data/categories';
+import { useTheme } from '../../theme/ThemeContext';
 import type { Task } from '../../utils/taskUtils';
 
 interface TaskCardProps {
@@ -11,6 +12,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: TaskCardProps) {
+  const { theme } = useTheme();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -18,7 +20,7 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
   const isLincoln = task.source === 'lincoln';
 
   const handleToggle = (e: MouseEvent) => {
-    if (showMenu) return; // Don't toggle if menu is open
+    if (showMenu) return;
     if (!isCompleted) {
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);
@@ -27,9 +29,7 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
   };
 
   const handleTouchStart = () => {
-    longPressTimer.current = setTimeout(() => {
-      setShowMenu(true);
-    }, 500); // 500ms long press
+    longPressTimer.current = setTimeout(() => setShowMenu(true), 500);
   };
 
   const handleTouchEnd = () => {
@@ -39,31 +39,23 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
     }
   };
 
-  const handleEdit = () => {
-    setShowMenu(false);
-    onEdit?.(task);
-  };
-
+  const handleEdit = () => { setShowMenu(false); onEdit?.(task); };
   const handleDelete = () => {
     setShowMenu(false);
-    if (confirm(`Delete "${task.title}"?`)) {
-      onDelete?.(task.id);
-    }
+    if (confirm(`Delete "${task.title}"?`)) onDelete?.(task.id);
   };
 
   return (
     <div className="relative">
       <div
-        className={`
-          relative rounded-xl p-4 backdrop-blur-sm transition-all duration-300
-          ${isLincoln ? 'lincoln-task bg-gray-900/50' : 'bg-gray-900/30'}
+        className={`relative rounded-xl p-4 backdrop-blur-sm transition-all duration-300
           ${isCompleted ? 'opacity-60' : 'opacity-100'}
           ${isAnimating ? 'scale-[1.02]' : 'scale-100'}
         `}
         style={{
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          borderColor: isLincoln ? config.borderColor : `${config.borderColor}`,
+          background: isLincoln ? `${theme.bg}cc` : `${theme.bg}66`,
+          borderWidth: 1, borderStyle: 'solid',
+          borderColor: isLincoln ? config.borderColor : theme.rule,
           boxShadow: isLincoln ? `0 0 20px ${config.glowColor}` : 'none',
         }}
         onTouchStart={handleTouchStart}
@@ -71,14 +63,11 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
         onMouseDown={handleTouchStart}
         onMouseUp={handleTouchEnd}
         onMouseLeave={handleTouchEnd}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setShowMenu(true);
-        }}
+        onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); }}
       >
         {/* Lincoln's gold pulse overlay */}
         {isLincoln && !isCompleted && (
-          <div 
+          <div
             className="absolute inset-0 rounded-xl pointer-events-none overflow-hidden"
             style={{
               background: `linear-gradient(90deg, transparent 0%, ${config.glowColor} 50%, transparent 100%)`,
@@ -92,10 +81,8 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
           {/* Checkbox */}
           <button
             onClick={handleToggle}
-            className={`
-              w-7 h-7 rounded-full border-2 flex items-center justify-center
+            className={`w-7 h-7 rounded-full border-2 flex items-center justify-center
               transition-all duration-300 flex-shrink-0
-              ${isCompleted ? 'bg-opacity-20' : 'bg-transparent'}
               ${isAnimating ? 'animate-pulse' : ''}
             `}
             style={{
@@ -104,54 +91,47 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
             }}
           >
             {isCompleted && (
-              <svg
-                className="w-4 h-4 text-gray-900"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={3}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
+              <svg className="w-4 h-4" style={{ color: theme.bgDeep }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
           </button>
 
           {/* Task content */}
           <div className="flex-1 min-w-0">
-            {/* Task title */}
             <div
-              className={`font-medium transition-all duration-300 ${
-                isCompleted ? 'line-through opacity-70' : ''
-              }`}
-              style={{ color: isLincoln ? config.color : '#f0f4ff' }}
+              className={`font-medium transition-all duration-300 ${isCompleted ? 'line-through' : ''}`}
+              style={{
+                color: isLincoln ? config.color : theme.ink,
+                opacity: isCompleted ? 0.7 : 1,
+                fontFamily: theme.serifB, fontSize: 18,
+                textDecorationColor: theme.inkGhost,
+              }}
             >
               {task.title}
             </div>
 
-            {/* Lincoln's notification text */}
             {isLincoln && task.notificationText && !isCompleted && (
-              <div className="text-sm mt-1 opacity-70 italic" style={{ color: config.color }}>
+              <div className="text-sm mt-1 italic" style={{ color: config.color, opacity: 0.7 }}>
                 "{task.notificationText}"
               </div>
             )}
 
-            {/* Description if exists (for non-Lincoln tasks) */}
             {!isLincoln && task.description && (
-              <div className="text-sm text-purple-300/60 mt-1">
+              <div className="text-sm mt-1" style={{ color: theme.inkFaint }}>
                 {task.description}
               </div>
             )}
           </div>
 
-          {/* Time badge if exists */}
+          {/* Time badge */}
           {task.reminderTimes && task.reminderTimes.length > 0 && (
             <div
-              className="text-xs px-2 py-1 rounded-full bg-gray-800/50"
-              style={{ color: config.color }}
+              style={{
+                fontFamily: theme.mono, fontSize: 10, letterSpacing: '0.04em',
+                padding: '4px 8px', borderRadius: 999,
+                background: `${config.color}15`, color: config.color,
+              }}
             >
               {task.reminderTimes[0]}
             </div>
@@ -159,49 +139,39 @@ export function TaskCard({ task, isCompleted, onToggle, onEdit, onDelete }: Task
         </div>
       </div>
 
-      {/* Action Menu - Larger touch targets */}
+      {/* Action Menu */}
       {showMenu && (
         <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40"
-            onClick={() => setShowMenu(false)}
-          />
-          
-          {/* Menu - Centered and larger */}
-          <div 
+          <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+          <div
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 rounded-2xl overflow-hidden shadow-2xl min-w-[200px]"
             style={{
-              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-              border: '1px solid rgba(183, 148, 246, 0.3)',
+              background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.bgDeep} 100%)`,
+              border: `1px solid ${theme.accent}50`,
             }}
           >
-            {/* Task title preview */}
-            <div className="px-5 py-4 border-b border-purple-500/20">
-              <p className="text-purple-300/70 text-xs mb-1">Task</p>
-              <p className="text-purple-200 text-sm font-medium truncate">{task.title}</p>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${theme.rule}` }}>
+              <p style={{ fontFamily: theme.sans, fontSize: 11, color: theme.inkFaint }}>Task</p>
+              <p style={{ fontFamily: theme.serifB, fontSize: 16, color: theme.ink, marginTop: 4 }}>{task.title}</p>
             </div>
-            
-            {/* Action buttons - much larger */}
             <button
               onClick={handleEdit}
-              className="w-full px-5 py-5 text-left text-base text-purple-200 hover:bg-purple-500/20 active:bg-purple-500/30 transition-colors flex items-center gap-4"
+              className="w-full px-5 py-5 text-left transition-colors flex items-center gap-4"
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: theme.ink, fontFamily: theme.sans, fontSize: 16 }}
             >
-              <span className="text-xl">✏️</span>
-              <span>Edit Task</span>
+              <span>✏️</span><span>Edit Task</span>
             </button>
             <button
               onClick={handleDelete}
-              className="w-full px-5 py-5 text-left text-base text-red-400 hover:bg-red-500/20 active:bg-red-500/30 transition-colors flex items-center gap-4 border-t border-purple-500/10"
+              className="w-full px-5 py-5 text-left transition-colors flex items-center gap-4"
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#f87171', fontFamily: theme.sans, fontSize: 16, borderTop: `1px solid ${theme.rule}` }}
             >
-              <span className="text-xl">🗑️</span>
-              <span>Delete Task</span>
+              <span>🗑️</span><span>Delete Task</span>
             </button>
-            
-            {/* Cancel button */}
             <button
               onClick={() => setShowMenu(false)}
-              className="w-full px-5 py-4 text-center text-sm text-purple-300/60 hover:bg-white/5 active:bg-white/10 transition-colors border-t border-purple-500/20"
+              className="w-full px-5 py-4 text-center transition-colors"
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: theme.inkFaint, fontFamily: theme.sans, fontSize: 14, borderTop: `1px solid ${theme.rule}` }}
             >
               Cancel
             </button>

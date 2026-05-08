@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTheme } from '../../theme/ThemeContext';
 
 export type NavTab = 'today' | 'tasks' | 'settings';
 
@@ -10,47 +11,49 @@ interface NavItemProps {
 }
 
 function NavItem({ icon, label, isActive, onClick }: NavItemProps) {
+  const { theme } = useTheme();
   return (
     <button
       onClick={onClick}
-      className={`
-        relative flex flex-col items-center justify-center gap-1 py-2 px-4 flex-1
-        transition-all duration-300 ease-out border-none bg-transparent cursor-pointer
-      `}
+      className="relative flex flex-col items-center justify-center gap-1 py-2 px-4 flex-1 transition-all duration-300 ease-out border-none bg-transparent cursor-pointer"
       style={{ minWidth: 48 }}
     >
       {/* Top accent bar for active */}
       {isActive && (
-        <div 
+        <div
           className="absolute -top-px left-1/2 -translate-x-1/2 w-6 rounded-b"
           style={{
             height: 3,
-            background: 'linear-gradient(90deg, #9a7bff, #6df0ff)',
+            background: theme.accent,
+            boxShadow: `0 0 8px ${theme.accent}66`,
           }}
         />
       )}
-      
+
       {/* Icon */}
-      <div 
-        className="relative z-10 transition-all duration-250"
+      <div
+        className="relative z-10 transition-all"
         style={{
           transform: isActive ? 'scale(1.1)' : 'scale(1)',
-          filter: isActive 
-            ? 'grayscale(0) drop-shadow(0 0 8px rgba(154, 123, 255, 0.5))' 
+          filter: isActive
+            ? `grayscale(0) drop-shadow(0 0 8px ${theme.accent}80)`
             : 'grayscale(0.4)',
           opacity: isActive ? 1 : 0.5,
+          transition: 'all 250ms',
         }}
       >
         {icon}
       </div>
-      
+
       {/* Label */}
-      <span 
-        className="relative z-10 text-xs font-medium transition-all duration-300"
+      <span
+        className="relative z-10 font-medium transition-all duration-300"
         style={{
-          color: isActive ? '#9a7bff' : '#9090b0',
-          letterSpacing: '0.3px',
-          fontSize: '9px',
+          color: isActive ? theme.accent : theme.inkFaint,
+          letterSpacing: '0.16em',
+          fontSize: 9,
+          textTransform: 'uppercase',
+          fontFamily: theme.sans,
         }}
       >
         {label}
@@ -65,16 +68,18 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+  const { theme } = useTheme();
   return (
-    <nav 
+    <nav
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{ height: 70 }}
     >
       <div
-        className="backdrop-blur-2xl h-full flex items-center justify-around"
+        className="h-full flex items-center justify-around"
         style={{
-          backgroundColor: 'rgba(10, 10, 16, 0.95)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          backgroundColor: `${theme.bgDeep}f2`,
+          backdropFilter: 'blur(12px)',
+          borderTop: `1px solid ${theme.rule}`,
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >

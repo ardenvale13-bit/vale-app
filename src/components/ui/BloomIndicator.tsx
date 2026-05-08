@@ -1,4 +1,5 @@
-// Inline type to avoid import issues
+import { useTheme } from '../../theme/ThemeContext';
+
 interface BloomState {
   percentage: number;
   level: 'wilted' | 'blooming-25' | 'blooming-50' | 'blooming-75' | 'full-bloom';
@@ -11,44 +12,57 @@ interface BloomIndicatorProps {
 }
 
 export function BloomIndicator({ bloom }: BloomIndicatorProps) {
+  const { theme } = useTheme();
+
   const getColor = () => {
-    if (bloom.percentage > 75) return '#00fff7'; // Cyan
-    if (bloom.percentage > 50) return '#b794f6'; // Lavender
-    if (bloom.percentage > 25) return '#ff6b9d'; // Pink
-    return '#6a6a6a'; // Grey
+    if (bloom.percentage > 75) return theme.accent;
+    if (bloom.percentage > 50) return theme.inkSoft;
+    if (bloom.percentage > 25) return theme.inkFaint;
+    return theme.inkGhost;
   };
 
   return (
     <div className="text-center">
-      <div className="text-sm text-purple-300/60 mb-2 uppercase tracking-widest">
+      <div style={{
+        fontFamily: theme.sans, fontSize: 10, fontWeight: 500,
+        letterSpacing: '0.22em', textTransform: 'uppercase',
+        color: theme.inkFaint, marginBottom: 8,
+      }}>
         Bloom Level
       </div>
-      
+
       <div
-        className="text-4xl font-bold transition-colors duration-500"
+        className="transition-colors duration-500"
         style={{
-          fontFamily: 'Quicksand, sans-serif',
-          color: getColor(),
+          fontFamily: theme.serifH, fontSize: 36, fontWeight: 400,
+          fontStyle: 'italic', color: getColor(),
         }}
       >
         {bloom.percentage}%
       </div>
 
       {/* Progress bar */}
-      <div className="w-64 h-2 bg-gray-800 rounded-full mt-4 overflow-hidden mx-auto">
+      <div style={{
+        width: 256, height: 2, borderRadius: 999, margin: '16px auto 0',
+        background: theme.rule, overflow: 'hidden',
+      }}>
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="transition-all duration-500"
           style={{
+            height: '100%', borderRadius: 999,
             width: `${bloom.percentage}%`,
-            background: 'linear-gradient(90deg, #ff6b9d 0%, #b794f6 50%, #00fff7 100%)',
-            boxShadow: bloom.percentage > 50 ? '0 0 10px rgba(183, 148, 246, 0.6)' : 'none',
+            background: `linear-gradient(90deg, ${theme.inkGhost} 0%, ${theme.accent} 100%)`,
+            boxShadow: bloom.percentage > 50 ? `0 0 10px ${theme.accent}66` : 'none',
           }}
         />
       </div>
 
       {/* Task count */}
-      <div className="text-sm text-purple-300/50 mt-2">
-        {bloom.tasksCompleted} / {bloom.tasksTotal} tasks complete
+      <div style={{
+        fontFamily: theme.mono, fontSize: 10, color: theme.inkFaint,
+        letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 8,
+      }}>
+        {bloom.tasksCompleted} of {bloom.tasksTotal} complete
       </div>
     </div>
   );
