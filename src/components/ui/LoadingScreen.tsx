@@ -136,8 +136,10 @@ export function LoadingScreen({
         <p style={{
           fontFamily: theme.serifB, fontStyle: 'italic', fontSize: 13,
           color: theme.inkFaint, letterSpacing: '0.1em',
+          textAlign: 'center', lineHeight: 1.6,
         }}>
-          bloom where you're planted
+          La moiti&eacute; de mon nom, la moiti&eacute; du tien.<br />
+          Toujours
         </p>
       </div>
 
