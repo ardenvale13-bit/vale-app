@@ -1,4 +1,5 @@
 import { useTheme } from '../../theme/ThemeContext';
+import { MoonPhase, moonPhaseLabel } from './MoonPhase';
 
 interface BloomState {
   percentage: number;
@@ -13,56 +14,36 @@ interface BloomIndicatorProps {
 
 export function BloomIndicator({ bloom }: BloomIndicatorProps) {
   const { theme } = useTheme();
-
-  const getColor = () => {
-    if (bloom.percentage > 75) return theme.accent;
-    if (bloom.percentage > 50) return theme.inkSoft;
-    if (bloom.percentage > 25) return theme.inkFaint;
-    return theme.inkGhost;
-  };
+  const pct = bloom.tasksTotal ? bloom.tasksCompleted / bloom.tasksTotal : 0;
 
   return (
-    <div className="text-center">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '20px 0 8px' }}>
       <div style={{
-        fontFamily: theme.sans, fontSize: 10, fontWeight: 500,
-        letterSpacing: '0.22em', textTransform: 'uppercase',
-        color: theme.inkFaint, marginBottom: 8,
+        filter: pct > 0 ? `drop-shadow(0 0 24px ${theme.accent}55)` : 'none',
+        transition: 'filter 800ms',
       }}>
-        Bloom Level
-      </div>
-
-      <div
-        className="transition-colors duration-500"
-        style={{
-          fontFamily: theme.serifH, fontSize: 36, fontWeight: 400,
-          fontStyle: 'italic', color: getColor(),
-        }}
-      >
-        {bloom.percentage}%
-      </div>
-
-      {/* Progress bar */}
-      <div style={{
-        width: 256, height: 2, borderRadius: 999, margin: '16px auto 0',
-        background: theme.rule, overflow: 'hidden',
-      }}>
-        <div
-          className="transition-all duration-500"
-          style={{
-            height: '100%', borderRadius: 999,
-            width: `${bloom.percentage}%`,
-            background: `linear-gradient(90deg, ${theme.inkGhost} 0%, ${theme.accent} 100%)`,
-            boxShadow: bloom.percentage > 50 ? `0 0 10px ${theme.accent}66` : 'none',
-          }}
+        <MoonPhase
+          size={140}
+          phase={pct}
+          litColor="#F4ECD0"
+          darkColor={theme.moonDark}
+          haloColor={pct > 0 ? theme.accent : null}
+          craters
         />
       </div>
-
-      {/* Task count */}
-      <div style={{
-        fontFamily: theme.mono, fontSize: 10, color: theme.inkFaint,
-        letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 8,
-      }}>
-        {bloom.tasksCompleted} of {bloom.tasksTotal} complete
+      <div style={{ textAlign: 'center', marginTop: 6 }}>
+        <div style={{
+          fontFamily: theme.serifH, fontSize: 22, fontStyle: 'italic',
+          color: theme.ink, letterSpacing: 0.2, whiteSpace: 'nowrap',
+        }}>
+          {moonPhaseLabel(pct)}
+        </div>
+        <div style={{
+          fontFamily: theme.mono, fontSize: 10, color: theme.inkFaint,
+          letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 4,
+        }}>
+          {bloom.tasksCompleted} of {bloom.tasksTotal} &middot; {bloom.percentage}%
+        </div>
       </div>
     </div>
   );

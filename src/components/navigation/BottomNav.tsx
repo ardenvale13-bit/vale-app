@@ -1,66 +1,7 @@
-import type { ReactNode } from 'react';
 import { useTheme } from '../../theme/ThemeContext';
+import { MoonPhase } from '../ui/MoonPhase';
 
 export type NavTab = 'today' | 'tasks' | 'settings';
-
-interface NavItemProps {
-  icon: ReactNode;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-function NavItem({ icon, label, isActive, onClick }: NavItemProps) {
-  const { theme } = useTheme();
-  return (
-    <button
-      onClick={onClick}
-      className="relative flex flex-col items-center justify-center gap-1 py-2 px-4 flex-1 transition-all duration-300 ease-out border-none bg-transparent cursor-pointer"
-      style={{ minWidth: 48 }}
-    >
-      {/* Top accent bar for active */}
-      {isActive && (
-        <div
-          className="absolute -top-px left-1/2 -translate-x-1/2 w-6 rounded-b"
-          style={{
-            height: 3,
-            background: theme.accent,
-            boxShadow: `0 0 8px ${theme.accent}66`,
-          }}
-        />
-      )}
-
-      {/* Icon */}
-      <div
-        className="relative z-10 transition-all"
-        style={{
-          transform: isActive ? 'scale(1.1)' : 'scale(1)',
-          filter: isActive
-            ? `grayscale(0) drop-shadow(0 0 8px ${theme.accent}80)`
-            : 'grayscale(0.4)',
-          opacity: isActive ? 1 : 0.5,
-          transition: 'all 250ms',
-        }}
-      >
-        {icon}
-      </div>
-
-      {/* Label */}
-      <span
-        className="relative z-10 font-medium transition-all duration-300"
-        style={{
-          color: isActive ? theme.accent : theme.inkFaint,
-          letterSpacing: '0.16em',
-          fontSize: 9,
-          textTransform: 'uppercase',
-          fontFamily: theme.sans,
-        }}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
 
 interface BottomNavProps {
   activeTab: NavTab;
@@ -69,39 +10,73 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const { theme } = useTheme();
+
+  const items: { id: NavTab; label: string; icon: 'moon' | 'list' | 'gear' }[] = [
+    { id: 'today',    label: 'Today',   icon: 'moon' },
+    { id: 'tasks',    label: 'Library', icon: 'list' },
+    { id: 'settings', label: 'Tune',    icon: 'gear' },
+  ];
+
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50"
-      style={{ height: 70 }}
-    >
-      <div
-        className="h-full flex items-center justify-around"
-        style={{
-          backgroundColor: `${theme.bgDeep}f2`,
-          backdropFilter: 'blur(12px)',
-          borderTop: `1px solid ${theme.rule}`,
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        }}
-      >
-        <NavItem
-          icon={<img src="/nav-today.png" alt="" style={{ height: 28, width: 'auto' }} />}
-          label="Today"
-          isActive={activeTab === 'today'}
-          onClick={() => onTabChange('today')}
-        />
-        <NavItem
-          icon={<img src="/nav-tasks.png" alt="" style={{ height: 28, width: 'auto' }} />}
-          label="Tasks"
-          isActive={activeTab === 'tasks'}
-          onClick={() => onTabChange('tasks')}
-        />
-        <NavItem
-          icon={<img src="/nav-settings.png" alt="" style={{ height: 28, width: 'auto' }} />}
-          label="Settings"
-          isActive={activeTab === 'settings'}
-          onClick={() => onTabChange('settings')}
-        />
-      </div>
+    <nav style={{
+      position: 'fixed', left: 0, right: 0, bottom: 0,
+      padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
+      display: 'flex', justifyContent: 'space-around',
+      background: `linear-gradient(180deg, transparent 0%, ${theme.bgDeep}d9 50%)`,
+      backdropFilter: 'blur(12px)',
+      borderTop: `1px solid ${theme.rule}`,
+      zIndex: 50,
+    }}>
+      {items.map(i => {
+        const active = activeTab === i.id;
+        return (
+          <button
+            key={i.id}
+            onClick={() => onTabChange(i.id)}
+            style={{
+              all: 'unset', cursor: 'pointer',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 4, padding: '4px 14px',
+            }}
+          >
+            <span style={{
+              width: 22, height: 22,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {i.icon === 'moon' && (
+                <MoonPhase
+                  size={18}
+                  phase={active ? 1 : 0.35}
+                  litColor={active ? theme.accent : theme.inkSoft}
+                  darkColor="rgba(232,228,242,0.12)"
+                />
+              )}
+              {i.icon === 'list' && (
+                <svg width="18" height="18" viewBox="0 0 18 18">
+                  <line x1="3" y1="5"  x2="15" y2="5"  stroke={active ? theme.accent : theme.inkSoft} strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="3" y1="9"  x2="15" y2="9"  stroke={active ? theme.accent : theme.inkSoft} strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="3" y1="13" x2="11" y2="13" stroke={active ? theme.accent : theme.inkSoft} strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              )}
+              {i.icon === 'gear' && (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <circle cx="9" cy="9" r="2.5" stroke={active ? theme.accent : theme.inkSoft} strokeWidth="1.5" />
+                  <path
+                    d="M9 1v2M9 15v2M1 9h2M15 9h2M3 3l1.5 1.5M13.5 13.5L15 15M3 15l1.5-1.5M13.5 4.5L15 3"
+                    stroke={active ? theme.accent : theme.inkSoft}
+                    strokeWidth="1.5" strokeLinecap="round"
+                  />
+                </svg>
+              )}
+            </span>
+            <span style={{
+              fontFamily: theme.sans, fontSize: 9,
+              letterSpacing: '0.16em', textTransform: 'uppercase',
+              color: active ? theme.accent : theme.inkFaint,
+            }}>{i.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

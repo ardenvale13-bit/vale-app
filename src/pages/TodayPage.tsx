@@ -1,17 +1,129 @@
 import type { MouseEvent } from 'react';
 import { StarField } from '../components/ui/StarField';
 import { BloomIndicator } from '../components/ui/BloomIndicator';
-import { CategoryHeader } from '../components/ui/CategoryHeader';
-import { TaskCard } from '../components/tasks/TaskCard';
 import { categoryConfig } from '../data/categories';
 import { useTheme } from '../theme/ThemeContext';
 import {
   groupTasksByCategory,
   calculateBloom,
-  formatDate,
   categoryOrder
 } from '../utils/taskUtils';
 import type { Task } from '../utils/taskUtils';
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+function prettyDate(): string {
+  return new Date().toLocaleDateString('en-NZ', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+function greetingTime(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ── Section header — small caps with hairline rule ───────────────
+
+function SectionHead({ children, accent, count }: {
+  children: React.ReactNode; accent?: string; count?: string;
+}) {
+  const { theme } = useTheme();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 4px' }}>
+      <span style={{
+        fontFamily: theme.sans, fontSize: 10, fontWeight: 500,
+        letterSpacing: '0.22em', textTransform: 'uppercase',
+        color: accent || theme.inkFaint, whiteSpace: 'nowrap',
+      }}>{children}</span>
+      <span style={{ flex: 1, height: 1, background: theme.rule }} />
+      {count != null && (
+        <span style={{
+          fontFamily: theme.mono, fontSize: 10,
+          color: theme.inkFaint, letterSpacing: '0.05em',
+        }}>{count}</span>
+      )}
+    </div>
+  );
+}
+
+// ── Task row — star toggle + serif title + hairline border ───────
+
+function TaskRow({ task, isCompleted, onToggle }: {
+  task: Task; isCompleted: boolean; onToggle: (id: string, e?: MouseEvent) => void;
+}) {
+  const { theme } = useTheme();
+  const cat = categoryConfig[task.category as keyof typeof categoryConfig];
+
+  return (
+    <button
+      onClick={(e) => onToggle(task.id, e)}
+      style={{
+        all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+        padding: '14px 2px', width: '100%', boxSizing: 'border-box',
+        borderBottom: `1px solid ${theme.rule}`,
+      }}
+    >
+      {/* Star / dot toggle */}
+      <span style={{
+        width: 18, height: 18, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {isCompleted ? (
+          <svg width="18" height="18" viewBox="-10 -10 20 20">
+            <path
+              d="M0,-9 L2.1,-2.8 L8.5,-2.8 L3.4,1.1 L5.4,7.3 L0,3.5 L-5.4,7.3 L-3.4,1.1 L-8.5,-2.8 L-2.1,-2.8 Z"
+              fill={theme.accent}
+              style={{ filter: `drop-shadow(0 0 6px ${theme.accent}88)` }}
+            />
+          </svg>
+        ) : (
+          <span style={{
+            width: 12, height: 12, borderRadius: 999,
+            border: `1px solid ${theme.inkGhost}`,
+          }} />
+        )}
+      </span>
+
+      {/* Title */}
+      <span style={{
+        flex: 1, fontFamily: theme.serifB, fontSize: 18,
+        color: isCompleted ? theme.inkFaint : theme.ink,
+        textDecoration: isCompleted ? 'line-through' : 'none',
+        textDecorationColor: theme.inkGhost,
+        letterSpacing: 0.1,
+      }}>{task.title}</span>
+
+      {/* Lincoln's notification text as detail */}
+      {task.notificationText && !isCompleted && (
+        <span style={{
+          fontFamily: theme.mono, fontSize: 10,
+          color: theme.inkFaint, letterSpacing: '0.04em',
+          maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{task.reminderTimes?.[0] || ''}</span>
+      )}
+
+      {/* Time badge for non-Lincoln tasks */}
+      {!task.notificationText && task.reminderTimes && task.reminderTimes.length > 0 && (
+        <span style={{
+          fontFamily: theme.mono, fontSize: 10,
+          color: theme.inkFaint, letterSpacing: '0.04em',
+        }}>{task.reminderTimes[0]}</span>
+      )}
+
+      {/* Category color dot */}
+      <span style={{
+        width: 6, height: 6, borderRadius: 999,
+        background: cat?.color || theme.inkFaint,
+        opacity: 0.85, flexShrink: 0,
+      }} />
+    </button>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────
 
 interface TodayPageProps {
   tasks: Task[];
@@ -22,7 +134,7 @@ interface TodayPageProps {
   onDeleteTask?: (taskId: string) => void;
 }
 
-export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TodayPageProps) {
+export function TodayPage({ tasks, completions, onToggleTask }: TodayPageProps) {
   const { theme } = useTheme();
   const groupedTasks = groupTasksByCategory(tasks);
   const todaysTaskIds = new Set(tasks.map(t => t.id));
@@ -32,116 +144,68 @@ export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditT
   const orderedCategories = categoryOrder.filter(cat => groupedTasks[cat]?.length > 0);
 
   return (
-    <div
-      className={`relative bloom-transition ${bloom.level}`}
-      style={{
-        overflowX: 'hidden', minHeight: '100vh',
-        background: `linear-gradient(180deg, ${theme.bgDeep} 0%, ${theme.bg} 60%, ${theme.bgGrad} 100%)`,
-        color: theme.ink, fontFamily: theme.sans,
-      }}
-    >
-      <StarField count={60} intensity={0.3 + (starIntensity * 0.7)} />
+    <div style={{
+      minHeight: '100vh', position: 'relative',
+      background: `linear-gradient(180deg, ${theme.bgDeep} 0%, ${theme.bg} 60%, ${theme.bgGrad} 100%)`,
+      color: theme.ink, fontFamily: theme.sans, paddingBottom: 96,
+    }}>
+      <StarField count={80} intensity={0.3 + (starIntensity * 0.5)} />
 
-      <div className="relative z-10" style={{ paddingBottom: '100px' }}>
-        {/* Section header banner */}
-        <div className="flex justify-center pt-2 pb-2">
-          <img
-            src="/header-today.png"
-            alt="Today"
-            style={{
-              maxWidth: 280,
-              height: 'auto',
-              filter: `drop-shadow(0 2px 12px ${theme.accent}50)`,
-            }}
-          />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Header */}
+        <div style={{ padding: '54px 24px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{
+              fontFamily: theme.sans, fontSize: 10, fontWeight: 500,
+              letterSpacing: '0.22em', textTransform: 'uppercase', color: theme.inkFaint,
+            }}>
+              {prettyDate()}
+            </div>
+            <h1 style={{
+              fontFamily: theme.serifH, fontSize: 38, fontWeight: 400,
+              fontStyle: 'italic', letterSpacing: -0.5, margin: '8px 0 0', lineHeight: 1,
+            }}>
+              {greetingTime()},<br />
+              <span style={{ color: theme.accent }}>Arden</span>
+            </h1>
+          </div>
         </div>
 
-        {/* Header bar */}
-        <header className="px-5 pb-4">
-          <div className="flex items-center justify-between max-w-lg mx-auto">
-            <div>
-              <p style={{ color: theme.inkFaint, fontSize: 14 }}>{formatDate(new Date())}</p>
-            </div>
-            {onAddTask && (
-              <button
-                onClick={onAddTask}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
-                style={{
-                  background: `linear-gradient(135deg, ${theme.accent}66, ${theme.accent}33)`,
-                  border: `1px solid ${theme.accent}50`,
-                  boxShadow: `0 0 15px ${theme.accent}33`,
-                }}
-              >
-                <span style={{ fontSize: 18, color: theme.ink, fontWeight: 'bold' }}>+</span>
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Bloom indicator */}
-        <div className="px-5 mb-6 max-w-lg mx-auto">
+        {/* Moon bloom indicator */}
+        <div className="px-5 mb-2 max-w-lg mx-auto">
           <BloomIndicator bloom={bloom} />
         </div>
 
-        {/* Task list */}
-        <div className="max-w-lg mx-auto px-4 space-y-6">
+        {/* Task groups */}
+        <div style={{ padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
           {orderedCategories.length === 0 ? (
-            <div className="text-center py-12">
-              <p style={{ color: theme.inkSoft, fontSize: 18 }}>No tasks for today</p>
-              <p style={{ color: theme.inkFaint, fontSize: 14, marginTop: 8 }}>Enjoy your rest, dove</p>
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <div style={{ fontFamily: theme.serifH, fontSize: 22, fontStyle: 'italic', color: theme.inkSoft }}>
+                No tasks for today
+              </div>
+              <div style={{ fontFamily: theme.mono, fontSize: 10, color: theme.inkFaint, marginTop: 8, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+                enjoy your rest, dove
+              </div>
             </div>
           ) : (
-            orderedCategories.map((category, categoryIndex) => {
-              const categoryTasks = groupedTasks[category];
-              const config = categoryConfig[category as keyof typeof categoryConfig];
-              const completedCount = categoryTasks.filter(t => completions.has(t.id)).length;
-
+            orderedCategories.map(c => {
+              const cat = categoryConfig[c as keyof typeof categoryConfig];
+              const list = groupedTasks[c];
+              const dn = list.filter(t => completions.has(t.id)).length;
               return (
-                <div
-                  key={category}
-                  className="space-y-3"
-                  style={{ animationDelay: `${categoryIndex * 0.1}s` }}
-                >
-                  {/* Category header */}
-                  <div className="flex items-center justify-between px-2">
-                    <CategoryHeader label={config.label} size="sm" />
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full"
-                      style={{
-                        background: `${config.color}15`,
-                        color: `${config.color}99`,
-                      }}
-                    >
-                      {completedCount}/{categoryTasks.length}
-                    </span>
-                  </div>
-
-                  {/* Tasks container */}
-                  <div
-                    className="rounded-2xl overflow-hidden"
-                    style={{
-                      background: `${theme.bg}88`,
-                      border: `1px solid ${theme.rule}`,
-                      backdropFilter: 'blur(8px)',
-                    }}
-                  >
-                    <div className="p-2 space-y-2">
-                      {categoryTasks.map((task, taskIndex) => (
-                        <div
-                          key={task.id}
-                          className="task-card-enter"
-                          style={{ animationDelay: `${(categoryIndex * 0.1) + (taskIndex * 0.05)}s` }}
-                        >
-                          <TaskCard
-                            task={task}
-                            isCompleted={completions.has(task.id)}
-                            onToggle={onToggleTask}
-                            onEdit={onEditTask}
-                            onDelete={onDeleteTask}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                <div key={c}>
+                  <SectionHead accent={cat?.color} count={`${dn}/${list.length}`}>
+                    {cat?.label || c}
+                  </SectionHead>
+                  <div style={{ marginTop: 8 }}>
+                    {list.map(task => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        isCompleted={completions.has(task.id)}
+                        onToggle={onToggleTask}
+                      />
+                    ))}
                   </div>
                 </div>
               );
@@ -149,15 +213,12 @@ export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditT
           )}
         </div>
 
-        {/* Footer */}
-        <footer className="text-center mt-10 pb-6">
-          <p style={{
-            fontFamily: theme.serifB, fontStyle: 'italic', fontSize: 13,
-            color: theme.inkFaint,
-          }}>
-            built with &hearts; by Lincoln & Arden
-          </p>
-        </footer>
+        <div style={{
+          textAlign: 'center', padding: '40px 0 24px',
+          fontFamily: theme.serifB, fontStyle: 'italic', fontSize: 13, color: theme.inkFaint,
+        }}>
+          built with &hearts; by Lincoln & Arden
+        </div>
       </div>
     </div>
   );
