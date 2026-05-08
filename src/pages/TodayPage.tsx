@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useState, useRef, type MouseEvent } from 'react';
 import { StarField } from '../components/ui/StarField';
 import { BloomIndicator } from '../components/ui/BloomIndicator';
 import { categoryConfig } from '../data/categories';
@@ -51,75 +51,117 @@ function SectionHead({ children, accent, count }: {
 
 // ── Task row — star toggle + serif title + hairline border ───────
 
-function TaskRow({ task, isCompleted, onToggle }: {
-  task: Task; isCompleted: boolean; onToggle: (id: string, e?: MouseEvent) => void;
+function TaskRow({ task, isCompleted, onToggle, onEdit, onDelete }: {
+  task: Task; isCompleted: boolean;
+  onToggle: (id: string, e?: MouseEvent) => void;
+  onEdit?: (task: Task) => void;
+  onDelete?: (taskId: string) => void;
 }) {
   const { theme } = useTheme();
   const cat = categoryConfig[task.category as keyof typeof categoryConfig];
+  const [showMenu, setShowMenu] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTouchStart = () => {
+    longPressTimer.current = setTimeout(() => setShowMenu(true), 500);
+  };
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
 
   return (
-    <button
-      onClick={(e) => onToggle(task.id, e)}
-      style={{
-        all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
-        padding: '14px 2px', width: '100%', boxSizing: 'border-box',
-        borderBottom: `1px solid ${theme.rule}`,
-      }}
-    >
-      {/* Star / dot toggle */}
-      <span style={{
-        width: 18, height: 18, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {isCompleted ? (
-          <svg width="18" height="18" viewBox="-10 -10 20 20">
-            <path
-              d="M0,-9 L2.1,-2.8 L8.5,-2.8 L3.4,1.1 L5.4,7.3 L0,3.5 L-5.4,7.3 L-3.4,1.1 L-8.5,-2.8 L-2.1,-2.8 Z"
-              fill={theme.accent}
-              style={{ filter: `drop-shadow(0 0 6px ${theme.accent}88)` }}
-            />
-          </svg>
-        ) : (
+    <>
+      <div
+        onClick={(e) => { if (!showMenu) onToggle(task.id, e); }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleTouchStart}
+        onMouseUp={handleTouchEnd}
+        onMouseLeave={handleTouchEnd}
+        onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); }}
+        style={{
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+          padding: '14px 2px', width: '100%', boxSizing: 'border-box',
+          borderBottom: `1px solid ${theme.rule}`,
+        }}
+      >
+        {/* Star / dot toggle */}
+        <span style={{
+          width: 18, height: 18, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {isCompleted ? (
+            <svg width="18" height="18" viewBox="-10 -10 20 20">
+              <path
+                d="M0,-9 L2.1,-2.8 L8.5,-2.8 L3.4,1.1 L5.4,7.3 L0,3.5 L-5.4,7.3 L-3.4,1.1 L-8.5,-2.8 L-2.1,-2.8 Z"
+                fill={theme.accent}
+                style={{ filter: `drop-shadow(0 0 6px ${theme.accent}88)` }}
+              />
+            </svg>
+          ) : (
+            <span style={{
+              width: 12, height: 12, borderRadius: 999,
+              border: `1px solid ${theme.inkGhost}`,
+            }} />
+          )}
+        </span>
+
+        {/* Title */}
+        <span style={{
+          flex: 1, fontFamily: theme.serifB, fontSize: 18,
+          color: isCompleted ? theme.inkFaint : theme.ink,
+          textDecoration: isCompleted ? 'line-through' : 'none',
+          textDecorationColor: theme.inkGhost,
+          letterSpacing: 0.1,
+        }}>{task.title}</span>
+
+        {/* Time */}
+        {task.reminderTimes && task.reminderTimes.length > 0 && (
           <span style={{
-            width: 12, height: 12, borderRadius: 999,
-            border: `1px solid ${theme.inkGhost}`,
-          }} />
+            fontFamily: theme.mono, fontSize: 10,
+            color: theme.inkFaint, letterSpacing: '0.04em',
+          }}>{task.reminderTimes[0]}</span>
         )}
-      </span>
 
-      {/* Title */}
-      <span style={{
-        flex: 1, fontFamily: theme.serifB, fontSize: 18,
-        color: isCompleted ? theme.inkFaint : theme.ink,
-        textDecoration: isCompleted ? 'line-through' : 'none',
-        textDecorationColor: theme.inkGhost,
-        letterSpacing: 0.1,
-      }}>{task.title}</span>
-
-      {/* Lincoln's notification text as detail */}
-      {task.notificationText && !isCompleted && (
+        {/* Category color dot */}
         <span style={{
-          fontFamily: theme.mono, fontSize: 10,
-          color: theme.inkFaint, letterSpacing: '0.04em',
-          maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{task.reminderTimes?.[0] || ''}</span>
-      )}
+          width: 6, height: 6, borderRadius: 999,
+          background: cat?.color || theme.inkFaint,
+          opacity: 0.85, flexShrink: 0,
+        }} />
+      </div>
 
-      {/* Time badge for non-Lincoln tasks */}
-      {!task.notificationText && task.reminderTimes && task.reminderTimes.length > 0 && (
-        <span style={{
-          fontFamily: theme.mono, fontSize: 10,
-          color: theme.inkFaint, letterSpacing: '0.04em',
-        }}>{task.reminderTimes[0]}</span>
+      {/* Long-press action menu */}
+      {showMenu && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowMenu(false)} />
+          <div style={{
+            position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+            zIndex: 50, borderRadius: 16, overflow: 'hidden', minWidth: 200,
+            background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.bgDeep} 100%)`,
+            border: `1px solid ${theme.accent}40`,
+            boxShadow: `0 25px 50px rgba(0,0,0,0.5), 0 0 40px ${theme.accent}22`,
+          }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${theme.rule}` }}>
+              <div style={{ fontFamily: theme.sans, fontSize: 10, color: theme.inkFaint, letterSpacing: '0.22em', textTransform: 'uppercase' }}>Task</div>
+              <div style={{ fontFamily: theme.serifB, fontSize: 16, color: theme.ink, marginTop: 4 }}>{task.title}</div>
+            </div>
+            <button onClick={() => { setShowMenu(false); onEdit?.(task); }}
+              style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, width: '100%', boxSizing: 'border-box', padding: '16px 20px', fontFamily: theme.sans, fontSize: 16, color: theme.ink }}>
+              <span>✏️</span><span>Edit</span>
+            </button>
+            <button onClick={() => { setShowMenu(false); if (confirm(`Delete "${task.title}"?`)) onDelete?.(task.id); }}
+              style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, width: '100%', boxSizing: 'border-box', padding: '16px 20px', fontFamily: theme.sans, fontSize: 16, color: '#f87171', borderTop: `1px solid ${theme.rule}` }}>
+              <span>🗑️</span><span>Delete</span>
+            </button>
+            <button onClick={() => setShowMenu(false)}
+              style={{ all: 'unset', cursor: 'pointer', width: '100%', boxSizing: 'border-box', padding: '14px 20px', textAlign: 'center', fontFamily: theme.sans, fontSize: 14, color: theme.inkFaint, borderTop: `1px solid ${theme.rule}` }}>
+              Cancel
+            </button>
+          </div>
+        </>
       )}
-
-      {/* Category color dot */}
-      <span style={{
-        width: 6, height: 6, borderRadius: 999,
-        background: cat?.color || theme.inkFaint,
-        opacity: 0.85, flexShrink: 0,
-      }} />
-    </button>
+    </>
   );
 }
 
@@ -134,7 +176,7 @@ interface TodayPageProps {
   onDeleteTask?: (taskId: string) => void;
 }
 
-export function TodayPage({ tasks, completions, onToggleTask }: TodayPageProps) {
+export function TodayPage({ tasks, completions, onToggleTask, onAddTask, onEditTask, onDeleteTask }: TodayPageProps) {
   const { theme } = useTheme();
   const groupedTasks = groupTasksByCategory(tasks);
   const todaysTaskIds = new Set(tasks.map(t => t.id));
@@ -169,6 +211,15 @@ export function TodayPage({ tasks, completions, onToggleTask }: TodayPageProps) 
               <span style={{ color: theme.accent }}>Arden</span>
             </h1>
           </div>
+          {onAddTask && (
+            <button onClick={onAddTask} style={{
+              all: 'unset', cursor: 'pointer', width: 36, height: 36, borderRadius: 999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: `1px solid ${theme.rule}`, color: theme.accent,
+              fontFamily: theme.serifH, fontSize: 24, fontStyle: 'italic',
+              marginTop: 8, transition: 'all 200ms',
+            }}>+</button>
+          )}
         </div>
 
         {/* Moon bloom indicator */}
@@ -204,6 +255,8 @@ export function TodayPage({ tasks, completions, onToggleTask }: TodayPageProps) 
                         task={task}
                         isCompleted={completions.has(task.id)}
                         onToggle={onToggleTask}
+                        onEdit={onEditTask}
+                        onDelete={onDeleteTask}
                       />
                     ))}
                   </div>
